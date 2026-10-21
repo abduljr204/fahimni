@@ -97,7 +97,7 @@ function pickReply(body: string): string {
   const isArabic = /[؀-ۿ]/.test(body);
   const r = isArabic ? replies.ar : replies.en;
   const text = body.toLowerCase();
-  if (/(ثمن|سعر|بشحال|كم|price|cost|how much|prix)/.test(text)) return r.price;
+  if (/(ثمن|سعر|بكم|قداش|كم|price|cost|how much|prix)/.test(text)) return r.price;
   if (/(متاح|موعد|وقت|available|time|when|dispo)/.test(text)) return r.time;
   if (/(شكر|merci|thank|thx)/.test(text)) return r.thanks;
   if (/(مرحب|سلام|أهل|hello|hi|salut|bonjour)/.test(text)) return r.greeting;

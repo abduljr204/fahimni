@@ -46,7 +46,7 @@ export const appConfig = {
 export const brand = {
   name: { ar: "نقراو", en: "Naqraw" },
   tagline: { ar: "نقراو مع بعض", en: "Let's study together" },
-  currency: "MAD",
+  currency: "LYD",
   supportEmail: "hello@naqraw.example",
   lessonDurations: [30, 60, 90] as const,
   bookingWindowDays: 14,

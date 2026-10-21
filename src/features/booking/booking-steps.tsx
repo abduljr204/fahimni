@@ -6,7 +6,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { Card, Chip, Skeleton } from "@/components/ui/primitives";
 import { EmptyState } from "@/components/ui/empty-state";
 import { brand } from "@/config/app-config";
+import { priceForDuration } from "@/domain/booking-rules";
 import type { DaySlots, LessonMode, Subject, TutorProfile } from "@/domain/types";
+import { intlLocales } from "@/i18n/config";
 import { useI18n } from "@/i18n/i18n-provider";
 import { cn } from "@/lib/cn";
 import { spring } from "@/lib/motion";
@@ -142,7 +144,7 @@ export function SubjectStep({
                 )}
                 <span className="relative block text-lg font-extrabold">{d}</span>
                 <span className={cn("relative block text-[12px]", selected ? "text-white/80" : "text-ink-500")}>
-                  {money({ currency: tutor.hourlyRate.currency, amountMinor: Math.round((tutor.hourlyRate.amountMinor * d) / 60) }, { compact: true })}
+                  {money(priceForDuration(tutor.hourlyRate, d), { compact: true })}
                 </span>
               </motion.button>
             );
@@ -307,7 +309,7 @@ export function TimeStep({
 function useMonthFormatter() {
   const i18n = useI18n();
   const monthFmt = useMemo(
-    () => new Intl.DateTimeFormat(i18n.locale === "ar" ? "ar-MA-u-nu-latn" : "en-GB", { month: "long", year: "numeric" }),
+    () => new Intl.DateTimeFormat(intlLocales[i18n.locale], { month: "long", year: "numeric" }),
     [i18n.locale],
   );
   return {

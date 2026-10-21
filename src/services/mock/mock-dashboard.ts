@@ -1,4 +1,5 @@
 import type { TutorDashboardService, PaymentService } from "../contracts";
+import { toMinor } from "@/domain/money";
 import { ServiceError } from "../errors";
 import { latency, mockDb, newId } from "./mock-db";
 import { completeFinishedLessons } from "./mock-bookings";
@@ -39,8 +40,8 @@ export const mockDashboardService: TutorDashboardService = {
     const chart = weeklyLessons.map((n, i) => n + baseline[i]);
 
     return {
-      earningsThisMonth: { currency: tutor.hourlyRate.currency, amountMinor: earned(monthStart, Number.MAX_SAFE_INTEGER) + 186_000 },
-      earningsLastMonth: { currency: tutor.hourlyRate.currency, amountMinor: earned(lastMonthStart, monthStart) + 192_000 },
+      earningsThisMonth: { currency: tutor.hourlyRate.currency, amountMinor: earned(monthStart, Number.MAX_SAFE_INTEGER) + toMinor(620, tutor.hourlyRate.currency) },
+      earningsLastMonth: { currency: tutor.hourlyRate.currency, amountMinor: earned(lastMonthStart, monthStart) + toMinor(780, tutor.hourlyRate.currency) },
       lessonsThisMonth: mine.filter((b) => new Date(b.startsAt).getTime() >= monthStart && b.status !== "cancelled" && b.status !== "declined").length + 14,
       upcomingCount: mine.filter((b) => b.status === "confirmed" && new Date(b.startsAt) > now).length,
       pendingCount: mine.filter((b) => b.status === "pending").length,

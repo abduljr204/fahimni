@@ -1,5 +1,6 @@
 import { brand } from "@/config/app-config";
 import { priceForDuration } from "@/domain/booking-rules";
+import { money as toMoney } from "@/domain/money";
 import type {
   AppNotification,
   AvailabilityWindow,
@@ -46,9 +47,9 @@ export interface MockState {
   profileViews: Record<string, number>;
 }
 
-export const MOCK_STATE_VERSION = 3;
+export const MOCK_STATE_VERSION = 4;
 
-const money = (major: number) => ({ amountMinor: major * 100, currency: brand.currency });
+const money = (major: number) => toMoney(major, brand.currency);
 
 // ─── Subjects ───────────────────────────────────────────────────────────────
 
@@ -60,8 +61,8 @@ const subjects: Subject[] = [
   { id: "s-chemistry", slug: "chemistry", category: "science", name: { ar: "الكيمياء العامة", en: "General Chemistry" } },
   { id: "s-biochem", slug: "biochemistry", category: "science", name: { ar: "الكيمياء الحيوية", en: "Biochemistry" } },
   { id: "s-biology", slug: "cell-biology", category: "science", name: { ar: "البيولوجيا الخلوية", en: "Cell Biology" } },
-  { id: "s-electronics", slug: "electronics", category: "engineering", name: { ar: "الإلكترونيك", en: "Electronics" } },
-  { id: "s-mechanics", slug: "mechanics", category: "engineering", name: { ar: "الميكانيك", en: "Mechanics" } },
+  { id: "s-electronics", slug: "electronics", category: "engineering", name: { ar: "الإلكترونيات", en: "Electronics" } },
+  { id: "s-mechanics", slug: "mechanics", category: "engineering", name: { ar: "الميكانيكا", en: "Mechanics" } },
   { id: "s-thermo", slug: "thermodynamics", category: "engineering", name: { ar: "الديناميكا الحرارية", en: "Thermodynamics" } },
   { id: "s-anatomy", slug: "anatomy", category: "medicine", name: { ar: "التشريح", en: "Anatomy" } },
   { id: "s-physiology", slug: "physiology", category: "medicine", name: { ar: "علم وظائف الأعضاء", en: "Physiology" } },
@@ -120,18 +121,18 @@ interface TutorSeed {
 }
 
 const CITY = {
-  rabat: { ar: "الرباط", en: "Rabat" },
-  casa: { ar: "الدار البيضاء", en: "Casablanca" },
-  fes: { ar: "فاس", en: "Fes" },
-  marrakech: { ar: "مراكش", en: "Marrakesh" },
-  tangier: { ar: "طنجة", en: "Tangier" },
-  agadir: { ar: "أكادير", en: "Agadir" },
+  tripoli: { ar: "طرابلس", en: "Tripoli" },
+  benghazi: { ar: "بنغازي", en: "Benghazi" },
+  misrata: { ar: "مصراتة", en: "Misrata" },
+  zawiya: { ar: "الزاوية", en: "Zawiya" },
+  sabha: { ar: "سبها", en: "Sabha" },
+  bayda: { ar: "البيضاء", en: "Bayda" },
 };
 
 const tutorSeeds: TutorSeed[] = [
   {
     key: "youssef",
-    name: { ar: "يوسف بنعلي", en: "Youssef Benali" },
+    name: { ar: "يوسف التاجوري", en: "Youssef Al-Tajouri" },
     hue: 248,
     headline: { ar: "دكتوراه في الرياضيات التطبيقية", en: "PhD candidate, Applied Mathematics" },
     bio: {
@@ -139,11 +140,11 @@ const tutorSeeds: TutorSeed[] = [
       en: "I've taught calculus and algebra to first- and second-year students for five years. I always start with understanding before memorising, and we work through past exam problems step by step.",
     },
     university: { ar: "كلية العلوم — جامعة تجريبية", en: "Faculty of Sciences — Demo University" },
-    city: CITY.rabat,
+    city: CITY.tripoli,
     subjectIds: ["s-calculus", "s-algebra", "s-stats"],
-    languages: ["ar", "darija", "fr"],
+    languages: ["ar", "libyan", "fr"],
     modes: ["online", "in_person"],
-    rate: 120,
+    rate: 45,
     years: 5,
     rating: 4.9,
     reviews: 128,
@@ -155,7 +156,7 @@ const tutorSeeds: TutorSeed[] = [
   },
   {
     key: "salma",
-    name: { ar: "سلمى الإدريسي", en: "Salma El Idrissi" },
+    name: { ar: "سلمى الفيتوري", en: "Salma Al-Fitouri" },
     hue: 330,
     headline: { ar: "طبيبة مقيمة — التشريح ووظائف الأعضاء", en: "Resident doctor — Anatomy & Physiology" },
     bio: {
@@ -163,11 +164,11 @@ const tutorSeeds: TutorSeed[] = [
       en: "I help early-year medical students understand anatomy with diagrams and mind maps, plus practice questions in the exam format.",
     },
     university: { ar: "كلية الطب والصيدلة — جامعة تجريبية", en: "Faculty of Medicine — Demo University" },
-    city: CITY.casa,
+    city: CITY.benghazi,
     subjectIds: ["s-anatomy", "s-physiology", "s-biology"],
-    languages: ["ar", "fr", "darija"],
+    languages: ["ar", "fr", "libyan"],
     modes: ["online", "in_person"],
-    rate: 150,
+    rate: 60,
     years: 3,
     rating: 4.8,
     reviews: 86,
@@ -179,19 +180,19 @@ const tutorSeeds: TutorSeed[] = [
   },
   {
     key: "amine",
-    name: { ar: "أمين الشرقاوي", en: "Amine Cherkaoui" },
+    name: { ar: "أمين الترهوني", en: "Amin Al-Tarhouni" },
     hue: 200,
     headline: { ar: "مهندس برمجيات — بايثون والخوارزميات", en: "Software engineer — Python & algorithms" },
     bio: {
-      ar: "مهندس برمجيات وأعمل مع طلبة المعلوميات على المشاريع والخوارزميات. دروسي عملية: نكتب الكود معًا ونحلل الأخطاء.",
+      ar: "مهندس برمجيات وأعمل مع طلبة تقنية المعلومات على المشاريع والخوارزميات. دروسي عملية: نكتب الكود معًا ونحلل الأخطاء.",
       en: "Software engineer working with CS students on projects and algorithms. My lessons are hands-on: we write code together and debug it.",
     },
-    university: { ar: "المدرسة الوطنية للمعلوميات — تجريبية", en: "National School of Computer Science — Demo" },
-    city: CITY.rabat,
+    university: { ar: "كلية تقنية المعلومات — جامعة تجريبية", en: "Faculty of Information Technology — Demo University" },
+    city: CITY.tripoli,
     subjectIds: ["s-python", "s-dsa", "s-databases"],
     languages: ["ar", "en", "fr"],
     modes: ["online"],
-    rate: 140,
+    rate: 55,
     years: 4,
     rating: 5.0,
     reviews: 64,
@@ -203,7 +204,7 @@ const tutorSeeds: TutorSeed[] = [
   },
   {
     key: "nour",
-    name: { ar: "نور الهدى بوزيد", en: "Nour El Houda Bouzid" },
+    name: { ar: "نور الهدى العبيدي", en: "Nour Al-Huda Al-Obeidi" },
     hue: 160,
     headline: { ar: "أستاذة إنجليزية — كتابة أكاديمية و IELTS", en: "English tutor — academic writing & IELTS" },
     bio: {
@@ -211,11 +212,11 @@ const tutorSeeds: TutorSeed[] = [
       en: "I'll help you write reports and research papers in English with confidence, and prepare for IELTS and TOEFL.",
     },
     university: { ar: "كلية الآداب — جامعة تجريبية", en: "Faculty of Letters — Demo University" },
-    city: CITY.fes,
+    city: CITY.misrata,
     subjectIds: ["s-english"],
     languages: ["ar", "en"],
     modes: ["online", "in_person"],
-    rate: 90,
+    rate: 35,
     years: 6,
     rating: 4.9,
     reviews: 152,
@@ -227,19 +228,19 @@ const tutorSeeds: TutorSeed[] = [
   },
   {
     key: "karim",
-    name: { ar: "كريم المنصوري", en: "Karim Mansouri" },
+    name: { ar: "كريم الزوي", en: "Karim Al-Zway" },
     hue: 30,
     headline: { ar: "خبير محاسب — المحاسبة والمالية", en: "Chartered accountant — accounting & finance" },
     bio: {
       ar: "أشرح المحاسبة العامة والتحليل المالي بأمثلة من الشركات الحقيقية، مع ملخصات جاهزة للمراجعة.",
       en: "I explain financial accounting and analysis with real company examples, plus ready-made revision summaries.",
     },
-    university: { ar: "المدرسة الوطنية للتجارة والتسيير — تجريبية", en: "National School of Business — Demo" },
-    city: CITY.casa,
+    university: { ar: "كلية الاقتصاد — جامعة تجريبية", en: "Faculty of Economics — Demo University" },
+    city: CITY.benghazi,
     subjectIds: ["s-accounting", "s-finance", "s-economics"],
     languages: ["ar", "fr"],
     modes: ["online", "in_person"],
-    rate: 110,
+    rate: 40,
     years: 7,
     rating: 4.7,
     reviews: 73,
@@ -251,19 +252,19 @@ const tutorSeeds: TutorSeed[] = [
   },
   {
     key: "imane",
-    name: { ar: "إيمان العلوي", en: "Imane Alaoui" },
+    name: { ar: "إيمان المسماري", en: "Iman Al-Mismari" },
     hue: 280,
     headline: { ar: "ماستر كيمياء — الكيمياء العامة والحيوية", en: "MSc Chemistry — general & biochemistry" },
     bio: {
       ar: "أحب تبسيط الكيمياء بالتجارب والأمثلة اليومية. أركز على حل التمارين وفهم الطرق بدل الحفظ.",
       en: "I love making chemistry simple with experiments and everyday examples. I focus on solving exercises and understanding methods instead of memorising.",
     },
-    university: { ar: "كلية العلوم والتقنيات — تجريبية", en: "Faculty of Science & Technology — Demo" },
-    city: CITY.marrakech,
+    university: { ar: "كلية العلوم — جامعة تجريبية", en: "Faculty of Science — Demo University" },
+    city: CITY.zawiya,
     subjectIds: ["s-chemistry", "s-biochem"],
-    languages: ["ar", "fr", "darija"],
+    languages: ["ar", "fr", "libyan"],
     modes: ["online", "in_person"],
-    rate: 100,
+    rate: 35,
     years: 2,
     rating: 4.8,
     reviews: 41,
@@ -275,19 +276,19 @@ const tutorSeeds: TutorSeed[] = [
   },
   {
     key: "hamza",
-    name: { ar: "حمزة التازي", en: "Hamza Tazi" },
+    name: { ar: "حمزة الورفلي", en: "Hamza Al-Warfalli" },
     hue: 120,
     headline: { ar: "عالم بيانات — الإحصاء وبايثون", en: "Data scientist — statistics & Python" },
     bio: {
-      ar: "أربط الإحصاء والاحتمالات بتطبيقات عملية في تحليل البيانات. مناسب لطلبة الاقتصاد والمعلوميات.",
+      ar: "أربط الإحصاء والاحتمالات بتطبيقات عملية في تحليل البيانات. مناسب لطلبة الاقتصاد وتقنية المعلومات.",
       en: "I connect statistics and probability to practical data-analysis applications. Great for economics and CS students.",
     },
-    university: { ar: "المعهد الوطني للإحصاء — تجريبي", en: "National Institute of Statistics — Demo" },
-    city: CITY.rabat,
+    university: { ar: "قسم الإحصاء — جامعة تجريبية", en: "Department of Statistics — Demo University" },
+    city: CITY.tripoli,
     subjectIds: ["s-stats", "s-python", "s-calculus"],
     languages: ["ar", "en", "fr"],
     modes: ["online"],
-    rate: 130,
+    rate: 50,
     years: 4,
     rating: 4.9,
     reviews: 58,
@@ -299,19 +300,19 @@ const tutorSeeds: TutorSeed[] = [
   },
   {
     key: "meriem",
-    name: { ar: "مريم حداد", en: "Meriem Haddad" },
+    name: { ar: "مريم بن حليم", en: "Mariam Ben Halim" },
     hue: 350,
     headline: { ar: "أستاذة فرنسية — التواصل والتعبير", en: "French tutor — communication & writing" },
     bio: {
-      ar: "أساعد الطلبة على تحسين الفرنسية الجامعية: العروض الشفهية، كتابة التقارير، والمصطلحات التقنية.",
+      ar: "أساعد الطلبة على تحسين الفرنسية: العروض الشفهية، كتابة التقارير، والمصطلحات التقنية.",
       en: "I help students improve university-level French: presentations, report writing and technical vocabulary.",
     },
     university: { ar: "كلية الآداب — جامعة تجريبية", en: "Faculty of Letters — Demo University" },
-    city: CITY.tangier,
+    city: CITY.bayda,
     subjectIds: ["s-french"],
     languages: ["ar", "fr"],
     modes: ["online", "in_person"],
-    rate: 80,
+    rate: 30,
     years: 5,
     rating: 4.6,
     reviews: 39,
@@ -323,19 +324,19 @@ const tutorSeeds: TutorSeed[] = [
   },
   {
     key: "omar",
-    name: { ar: "عمر الفاسي", en: "Omar El Fassi" },
+    name: { ar: "عمر الكيلاني", en: "Omar Al-Kilani" },
     hue: 15,
     headline: { ar: "باحث في القانون — المدني والدستوري", en: "Law researcher — civil & constitutional" },
     bio: {
       ar: "أساعد طلبة الحقوق على تحليل النصوص القانونية ومنهجية التعليق على القرارات والإجابة في الامتحانات.",
       en: "I help law students analyse legal texts, master case-commentary methodology and structure exam answers.",
     },
-    university: { ar: "كلية العلوم القانونية — جامعة تجريبية", en: "Faculty of Law — Demo University" },
-    city: CITY.fes,
+    university: { ar: "كلية القانون — جامعة تجريبية", en: "Faculty of Law — Demo University" },
+    city: CITY.misrata,
     subjectIds: ["s-civil-law", "s-const-law"],
     languages: ["ar", "fr"],
     modes: ["in_person", "online"],
-    rate: 120,
+    rate: 45,
     years: 6,
     rating: 4.8,
     reviews: 47,
@@ -347,19 +348,19 @@ const tutorSeeds: TutorSeed[] = [
   },
   {
     key: "rania",
-    name: { ar: "رانية بن يوسف", en: "Rania Benyoussef" },
+    name: { ar: "رانيا الشريف", en: "Rania Al-Sharif" },
     hue: 220,
     headline: { ar: "مهندسة — الفيزياء والإلكترونيك", en: "Engineer — physics & electronics" },
     bio: {
       ar: "أدرّس الفيزياء العامة والإلكترونيك بطريقة مرئية، مع محاكاة للدارات الكهربائية وتمارين محلولة.",
       en: "I teach general physics and electronics visually, with circuit simulations and worked exercises.",
     },
-    university: { ar: "المدرسة الوطنية للمهندسين — تجريبية", en: "School of Engineering — Demo" },
-    city: CITY.agadir,
+    university: { ar: "كلية الهندسة — جامعة تجريبية", en: "Faculty of Engineering — Demo University" },
+    city: CITY.sabha,
     subjectIds: ["s-physics", "s-electronics"],
     languages: ["ar", "fr", "en"],
     modes: ["online"],
-    rate: 115,
+    rate: 40,
     years: 3,
     rating: 4.7,
     reviews: 33,
@@ -371,19 +372,19 @@ const tutorSeeds: TutorSeed[] = [
   },
   {
     key: "adam",
-    name: { ar: "آدم الزياني", en: "Adam Zayani" },
+    name: { ar: "آدم الزنتاني", en: "Adam Al-Zintani" },
     hue: 180,
     headline: { ar: "طالب هندسة متفوق — الميكانيك والحرارة", en: "Top engineering student — mechanics & heat" },
     bio: {
       ar: "طالب في السنة الأخيرة هندسة ميكانيكية، الأول على دفعتي. أشرح لك بلغة الطلبة وبأمثلة من الامتحانات.",
       en: "Final-year mechanical engineering student, top of my class. I explain things in student language with exam examples.",
     },
-    university: { ar: "كلية العلوم والتقنيات — تجريبية", en: "Faculty of Science & Technology — Demo" },
-    city: CITY.tangier,
+    university: { ar: "كلية العلوم — جامعة تجريبية", en: "Faculty of Science — Demo University" },
+    city: CITY.bayda,
     subjectIds: ["s-mechanics", "s-thermo", "s-physics"],
-    languages: ["ar", "darija", "fr"],
+    languages: ["ar", "libyan", "fr"],
     modes: ["online", "in_person"],
-    rate: 70,
+    rate: 25,
     years: 1,
     rating: 4.9,
     reviews: 22,
@@ -395,7 +396,7 @@ const tutorSeeds: TutorSeed[] = [
   },
   {
     key: "lina",
-    name: { ar: "لينا مراد", en: "Lina Mourad" },
+    name: { ar: "لينا الدرسي", en: "Lina Al-Darsi" },
     hue: 300,
     headline: { ar: "صيدلانية — علم الأدوية", en: "Pharmacist — pharmacology" },
     bio: {
@@ -403,11 +404,11 @@ const tutorSeeds: TutorSeed[] = [
       en: "I turn long drug tables into easy-to-remember rules. Intensive revision sessions before exams.",
     },
     university: { ar: "كلية الطب والصيدلة — جامعة تجريبية", en: "Faculty of Medicine — Demo University" },
-    city: CITY.marrakech,
+    city: CITY.zawiya,
     subjectIds: ["s-pharma", "s-physiology", "s-biochem"],
     languages: ["ar", "fr"],
     modes: ["online"],
-    rate: 145,
+    rate: 55,
     years: 4,
     rating: 4.8,
     reviews: 51,
@@ -420,10 +421,10 @@ const tutorSeeds: TutorSeed[] = [
 ];
 
 const extraStudents = [
-  { key: "yassine", name: { ar: "ياسين العمري", en: "Yassine Amri" }, hue: 210 },
-  { key: "hajar", name: { ar: "هاجر بنسعيد", en: "Hajar Bensaid" }, hue: 340 },
-  { key: "mehdi", name: { ar: "مهدي القاسمي", en: "Mehdi Kassimi" }, hue: 90 },
-  { key: "aya", name: { ar: "آية الرحماني", en: "Aya Rahmani" }, hue: 20 },
+  { key: "yassine", name: { ar: "ياسين الفرجاني", en: "Yassin Al-Farjani" }, hue: 210 },
+  { key: "hajar", name: { ar: "هاجر البرعصي", en: "Hajar Al-Baraasi" }, hue: 340 },
+  { key: "mehdi", name: { ar: "مهدي اشتيوي", en: "Mahdi Shtewi" }, hue: 90 },
+  { key: "aya", name: { ar: "آية الغرياني", en: "Aya Al-Gharyani" }, hue: 20 },
 ];
 
 const reviewComments: { rating: number; comment: LocalizedText }[] = [
@@ -431,7 +432,7 @@ const reviewComments: { rating: number; comment: LocalizedText }[] = [
   { rating: 5, comment: { ar: "حضّرني للامتحان بتمارين مشابهة تمامًا. نجحت بامتياز 🙏", en: "Prepared me with exercises just like the exam. Passed with distinction 🙏" } },
   { rating: 4, comment: { ar: "درس مفيد ومنظم، أتمنى لو كان أطول قليلًا.", en: "Useful and well organised lesson, wish it was a bit longer." } },
   { rating: 5, comment: { ar: "أفضل أستاذ تعاملت معه، يعطي ملخصات رائعة بعد كل حصة.", en: "Best tutor I've had — great summaries after every session." } },
-  { rating: 5, comment: { ar: "يشرح بالدارجة والفصحى حسب الحاجة، وهذا ساعدني كثيرًا.", en: "Explains in Darija or Arabic as needed, which helped me a lot." } },
+  { rating: 5, comment: { ar: "يشرح باللهجة الليبية والفصحى حسب الحاجة، وهذا ساعدني كثيرًا.", en: "Explains in Libyan dialect or standard Arabic as needed, which helped me a lot." } },
   { rating: 4, comment: { ar: "ممتاز في الشرح، ويرد بسرعة على الرسائل.", en: "Excellent explanations and replies quickly to messages." } },
 ];
 
@@ -450,7 +451,7 @@ export function createSeed(now = new Date()): MockState {
       email: DEMO_STUDENT_EMAIL,
       password: DEMO_PASSWORD,
       role: "student",
-      displayName: { ar: "سارة العمراني", en: "Sara Amrani" },
+      displayName: { ar: "سارة بالخير", en: "Sara Belkheir" },
       avatarHue: 265,
       preferredLocale: "ar",
       createdAt: created,
@@ -522,15 +523,15 @@ export function createSeed(now = new Date()): MockState {
     verification: t.verification,
     instantBook: t.instantBook,
     availability: t.availability,
-    timezone: "Africa/Casablanca",
+    timezone: "Africa/Tripoli",
     createdAt: created,
     isDemo: true,
   }));
 
   const reviewers = [
-    { name: { ar: "ياسين", en: "Yassine" }, hue: 210, id: "u-yassine" },
+    { name: { ar: "ياسين", en: "Yassin" }, hue: 210, id: "u-yassine" },
     { name: { ar: "هاجر", en: "Hajar" }, hue: 340, id: "u-hajar" },
-    { name: { ar: "مهدي", en: "Mehdi" }, hue: 90, id: "u-mehdi" },
+    { name: { ar: "مهدي", en: "Mahdi" }, hue: 90, id: "u-mehdi" },
     { name: { ar: "آية", en: "Aya" }, hue: 20, id: "u-aya" },
   ];
 
@@ -654,9 +655,9 @@ export function createSeed(now = new Date()): MockState {
     msg("c-2", "u-salma", "كيف كانت المراجعة؟ هل تحتاجين ملخص الخلية؟", 60 * 26 + 5),
     msg("c-2", "u-sara", "نعم من فضلك، شكرًا جزيلًا!", 60 * 26),
     msg("c-3", "u-sara", "السلام عليكم، أرسلت لك طلب حجز ليوم الأحد. هل يناسبك؟", 38),
-    msg("c-4", "u-yassine", "Merci pour la séance d'hier, c'était très clair!", 120),
-    msg("c-4", "u-youssef", "Avec plaisir Yassine, n'oublie pas les exercices 4 et 5", 100),
-    msg("c-4", "u-yassine", "واش نقدرو نزيدو حصة السبت؟", 90, false),
+    msg("c-4", "u-yassine", "شكرًا على حصة البارح، كانت واضحة برشا!", 120),
+    msg("c-4", "u-youssef", "العفو يا ياسين، ما تنساش التمارين 4 و5", 100),
+    msg("c-4", "u-yassine", "نقدر نزيد حصة يوم السبت؟", 90, false),
     msg("c-5", "u-hajar", "Hi! I sent a booking request for statistics, hope that works for you.", 115, false),
   ];
 
@@ -673,7 +674,7 @@ export function createSeed(now = new Date()): MockState {
     { id: "n-1", userId: "u-sara", type: "booking_confirmed", data: { name: tutorById("t-amine").displayName, subject: subjects.find((s) => s.id === "s-dsa")!.name, bookingId: "b-1" }, createdAt: iso(ago(60 * 24 * 2)), isDemo: true },
     { id: "n-2", userId: "u-sara", type: "new_message", data: { name: tutorById("t-amine").displayName, conversationId: "c-1" }, createdAt: iso(ago(25)), isDemo: true },
     { id: "n-3", userId: "u-sara", type: "welcome", data: {}, createdAt: iso(ago(60 * 24 * 30)), readAt: iso(ago(60 * 24 * 29)), isDemo: true },
-    { id: "n-4", userId: "u-youssef", type: "booking_requested", data: { name: { ar: "سارة العمراني", en: "Sara Amrani" }, subject: subjects[0].name, bookingId: "b-2" }, createdAt: iso(ago(40)), isDemo: true },
+    { id: "n-4", userId: "u-youssef", type: "booking_requested", data: { name: { ar: "سارة بالخير", en: "Sara Belkheir" }, subject: subjects[0].name, bookingId: "b-2" }, createdAt: iso(ago(40)), isDemo: true },
     { id: "n-5", userId: "u-youssef", type: "booking_requested", data: { name: extraStudents[1].name, subject: subjects[2].name, bookingId: "b-6" }, createdAt: iso(ago(120)), isDemo: true },
     { id: "n-6", userId: "u-youssef", type: "review_received", data: { name: extraStudents[3].name, subject: subjects[0].name }, createdAt: iso(ago(60 * 20)), readAt: iso(ago(60 * 19)), isDemo: true },
   ];

@@ -116,7 +116,7 @@ const en: Dictionary = {
   },
   languagesSpoken: {
     ar: "Arabic",
-    darija: "Darija",
+    libyan: "Libyan Arabic",
     fr: "French",
     en: "English",
     amazigh: "Amazigh",

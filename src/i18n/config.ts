@@ -6,8 +6,8 @@ export const LOCALE_COOKIE = "NAQRAW_LOCALE";
 
 export const directions: Record<Locale, "rtl" | "ltr"> = { ar: "rtl", en: "ltr" };
 
-/** BCP-47 tags used for Intl formatting. Arabic uses Latin digits, as is common in the Maghreb. */
-export const intlLocales: Record<Locale, string> = { ar: "ar-MA-u-nu-latn", en: "en-GB" };
+/** BCP-47 tags used for Intl formatting. Arabic uses Latin digits, as is usual in Libya. */
+export const intlLocales: Record<Locale, string> = { ar: "ar-LY-u-nu-latn", en: "en-GB" };
 
 export function hasLocale(value: string): value is Locale {
   return (locales as string[]).includes(value);

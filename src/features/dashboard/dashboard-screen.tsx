@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Badge, Card, ForwardChevron, SectionHeader, Skeleton } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
 import { isUpcoming } from "@/domain/booking-rules";
+import { toMajor, toMinor } from "@/domain/money";
 import { SignInPrompt } from "@/features/auth/auth-gate";
 import { useRoleSwitch } from "@/features/demo/use-role-switch";
 import { LessonCard } from "@/features/lessons/lesson-card";
@@ -191,8 +192,8 @@ function Dashboard() {
               </Badge>
             </div>
             <AnimatedNumber
-              value={stats.earningsThisMonth.amountMinor / 100}
-              format={(n) => money({ currency: stats.earningsThisMonth.currency, amountMinor: Math.round(n) * 100 }, { compact: true })}
+              value={toMajor(stats.earningsThisMonth.amountMinor, stats.earningsThisMonth.currency)}
+              format={(n) => money({ currency: stats.earningsThisMonth.currency, amountMinor: toMinor(Math.round(n), stats.earningsThisMonth.currency) }, { compact: true })}
               className="relative mt-2 block text-4xl font-extrabold tracking-tight"
               duration={1.4}
             />

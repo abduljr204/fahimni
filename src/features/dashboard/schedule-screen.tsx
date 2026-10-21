@@ -21,8 +21,8 @@ const TIMES = Array.from({ length: 31 }, (_, i) => {
   const m = 7 * 60 + i * 30; // 07:00 → 22:00
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 });
-// Week starts on Monday in the editor.
-const ORDER = [1, 2, 3, 4, 5, 6, 0];
+// The Libyan week starts on Saturday (the weekend is Friday and Saturday).
+const ORDER = [6, 0, 1, 2, 3, 4, 5];
 
 function TimeSelect({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
   return (

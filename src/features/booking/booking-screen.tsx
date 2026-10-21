@@ -12,6 +12,7 @@ import { BackChevron, Card, ForwardChevron, Skeleton } from "@/components/ui/pri
 import { useToast } from "@/components/ui/toast";
 import { brand } from "@/config/app-config";
 import { localDateKey, priceForDuration } from "@/domain/booking-rules";
+import { toMajor, toMinor } from "@/domain/money";
 import type { Booking, DaySlots, LessonMode } from "@/domain/types";
 import { createBookingSchema } from "@/domain/validation";
 import { AuthGate } from "@/features/auth/auth-gate";
@@ -233,8 +234,8 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
                   <div className="mt-2 flex items-center justify-between border-t border-dashed border-ink-200 pt-3">
                     <span className="font-bold">{t.booking.total}</span>
                     <AnimatedNumber
-                      value={price.amountMinor / 100}
-                      format={(n) => money({ currency: price.currency, amountMinor: Math.round(n) * 100 })}
+                      value={toMajor(price.amountMinor, price.currency)}
+                      format={(n) => money({ currency: price.currency, amountMinor: toMinor(Math.round(n), price.currency) })}
                       className="text-xl font-extrabold text-brand-700"
                     />
                   </div>

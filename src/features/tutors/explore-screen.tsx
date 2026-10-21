@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { BottomSheet } from "@/components/ui/overlays";
 import { Chip, Switch } from "@/components/ui/primitives";
 import { brand } from "@/config/app-config";
+import { toMajor, toMinor } from "@/domain/money";
 import { SUBJECT_CATEGORIES, type LessonMode, type SubjectCategory } from "@/domain/types";
 import { useSubjects, useTutorSearch } from "@/hooks/use-data";
 import { useI18n } from "@/i18n/i18n-provider";
@@ -18,7 +19,9 @@ import { categoryIcons, TutorCard, TutorCardSkeleton } from "./shared";
 
 type Filters = Omit<TutorSearchFilters, "query">;
 
-const MAX_PRICE = 200;
+// Price filter bounds in major units (LYD per hour).
+const MIN_PRICE = 20;
+const MAX_PRICE = 80;
 const SORTS: TutorSort[] = ["recommended", "rating", "priceAsc", "priceDesc"];
 
 function activeFilterCount(f: Filters): number {
@@ -46,7 +49,7 @@ function FilterSheet({
   const { data: preview } = useTutorSearch(draft);
   const set = (patch: Partial<Filters>) => setDraft((d) => ({ ...d, ...patch }));
   const visibleSubjects = draft.category ? subjects.filter((s) => s.category === draft.category) : subjects;
-  const price = draft.maxHourlyRateMinor ? draft.maxHourlyRateMinor / 100 : MAX_PRICE;
+  const price = draft.maxHourlyRateMinor ? toMajor(draft.maxHourlyRateMinor, brand.currency) : MAX_PRICE;
 
   return (
     <BottomSheet
@@ -100,18 +103,18 @@ function FilterSheet({
           <div className="mb-2.5 flex items-center justify-between">
             <legend className="text-sm font-bold">{t.search.price}</legend>
             <motion.span key={price} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="text-sm font-bold text-brand-700">
-              {money({ amountMinor: price * 100, currency: brand.currency }, { compact: true })}
+              {money({ amountMinor: toMinor(price, brand.currency), currency: brand.currency }, { compact: true })}
             </motion.span>
           </div>
           <input
             type="range"
-            min={50}
+            min={MIN_PRICE}
             max={MAX_PRICE}
-            step={10}
+            step={5}
             value={price}
             onChange={(e) => {
               const v = Number(e.target.value);
-              set({ maxHourlyRateMinor: v >= MAX_PRICE ? undefined : v * 100 });
+              set({ maxHourlyRateMinor: v >= MAX_PRICE ? undefined : toMinor(v, brand.currency) });
             }}
             aria-label={t.search.price}
             className="w-full accent-brand-600"

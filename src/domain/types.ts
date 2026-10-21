@@ -79,7 +79,7 @@ export interface Subject {
 }
 
 export type LessonMode = "online" | "in_person";
-export type SpokenLanguage = "ar" | "darija" | "fr" | "en" | "amazigh";
+export type SpokenLanguage = "ar" | "libyan" | "fr" | "en" | "amazigh";
 export type VerificationStatus = "verified" | "pending" | "unverified";
 
 /** A weekly recurring window in the tutor's local time, e.g. Monday 17:00–21:00. */

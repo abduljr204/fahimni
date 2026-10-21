@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { toMajor } from "@/domain/money";
 import type { Locale, LocalizedText, Money } from "@/domain/types";
 import type { Dictionary } from "./dictionaries";
 import { directions, interpolate, intlLocales, localize } from "./config";
@@ -44,7 +45,7 @@ function createI18n(locale: Locale, dict: Dictionary) {
         });
         currencyFmts.set(key, f);
       }
-      return f.format(m.amountMinor / 100);
+      return f.format(toMajor(m.amountMinor, m.currency));
     },
     date: (iso: string | Date) => dateFmt.format(new Date(iso)),
     shortDate: (iso: string | Date) => shortDateFmt.format(new Date(iso)),

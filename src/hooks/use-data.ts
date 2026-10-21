@@ -1,0 +1,345 @@
+"use client";
+
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import type { AvailabilityWindow, Message } from "@/domain/types";
+import type { CreateBookingInput, ReviewInput } from "@/domain/validation";
+import { qk } from "@/lib/query-keys";
+import { getServices, type TutorSearchFilters } from "@/services";
+import { useSession } from "./use-session";
+
+/**
+ * Data hooks: the only place where screens touch services. Each hook is a thin
+ * TanStack Query wrapper, so swapping the backend never changes component code.
+ */
+
+const services = () => getServices();
+
+function useUserId(): string | undefined {
+  return useSession().session?.user.id;
+}
+
+// ─── Catalogue ──────────────────────────────────────────────────────────────
+
+export function useSubjects() {
+  return useQuery({ queryKey: qk.subjects, queryFn: () => services().subjects.list(), staleTime: Infinity });
+}
+
+export function useTutorSearch(filters: TutorSearchFilters) {
+  return useQuery({
+    queryKey: qk.tutors.search(filters),
+    queryFn: () => services().tutors.search(filters),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useFeaturedTutors() {
+  return useQuery({ queryKey: qk.tutors.featured, queryFn: () => services().tutors.listFeatured(8) });
+}
+
+export function useTutor(id: string | undefined) {
+  return useQuery({
+    queryKey: qk.tutors.detail(id ?? ""),
+    queryFn: () => services().tutors.getById(id!),
+    enabled: Boolean(id),
+  });
+}
+
+export function useTutorReviews(id: string) {
+  return useQuery({ queryKey: qk.tutors.reviews(id), queryFn: () => services().reviews.listForTutor(id, 6) });
+}
+
+export function useAvailableSlots(tutorId: string, durationMinutes: number, days: number) {
+  return useQuery({
+    queryKey: qk.tutors.slots(tutorId, durationMinutes),
+    queryFn: () => services().bookings.getAvailableSlots(tutorId, durationMinutes, days),
+    placeholderData: keepPreviousData,
+  });
+}
+
+// ─── Favourites ─────────────────────────────────────────────────────────────
+
+export function useFavorites() {
+  const userId = useUserId();
+  return useQuery({
+    queryKey: qk.favorites(userId ?? "guest"),
+    queryFn: () => services().favorites.list(userId!),
+    enabled: Boolean(userId),
+  });
+}
+
+export function useToggleFavorite() {
+  const userId = useUserId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (tutorId: string) => services().favorites.toggle(userId!, tutorId),
+    // Optimistic update so the heart animates instantly.
+    onMutate: async (tutorId) => {
+      const key = qk.favorites(userId!);
+      await client.cancelQueries({ queryKey: key });
+      const previous = client.getQueryData<string[]>(key) ?? [];
+      client.setQueryData<string[]>(
+        key,
+        previous.includes(tutorId) ? previous.filter((id) => id !== tutorId) : [...previous, tutorId],
+      );
+      return { previous };
+    },
+    onError: (_err, _id, ctx) => ctx && client.setQueryData(qk.favorites(userId!), ctx.previous),
+    onSettled: () => client.invalidateQueries({ queryKey: qk.favorites(userId!) }),
+  });
+}
+
+// ─── Bookings ───────────────────────────────────────────────────────────────
+
+export function useStudentBookings() {
+  const userId = useUserId();
+  return useQuery({
+    queryKey: qk.bookings.student(userId ?? "guest"),
+    queryFn: () => services().bookings.listForStudent(userId!),
+    enabled: Boolean(userId),
+  });
+}
+
+export function useTutorBookings() {
+  const { session } = useSession();
+  const tutorId = session?.tutorId;
+  return useQuery({
+    queryKey: qk.bookings.tutor(tutorId ?? "none"),
+    queryFn: () => services().bookings.listForTutor(session!.user.id, tutorId!),
+    enabled: Boolean(tutorId),
+  });
+}
+
+function useInvalidateBookings() {
+  const client = useQueryClient();
+  return () =>
+    Promise.all([
+      client.invalidateQueries({ queryKey: qk.bookings.all }),
+      client.invalidateQueries({ queryKey: ["tutors", "slots"] }),
+      client.invalidateQueries({ queryKey: ["dashboard"] }),
+    ]);
+}
+
+export function useCreateBooking() {
+  const userId = useUserId();
+  const invalidate = useInvalidateBookings();
+  return useMutation({
+    mutationFn: async (input: CreateBookingInput) => {
+      const booking = await services().bookings.create(userId!, input);
+      await services().payments.authorizeBooking(userId!, booking);
+      return booking;
+    },
+    onSettled: invalidate,
+  });
+}
+
+export function useCancelBooking() {
+  const userId = useUserId();
+  const invalidate = useInvalidateBookings();
+  return useMutation({
+    mutationFn: (bookingId: string) => services().bookings.cancel(userId!, bookingId),
+    onSettled: invalidate,
+  });
+}
+
+export function useRespondToBooking() {
+  const userId = useUserId();
+  const invalidate = useInvalidateBookings();
+  return useMutation({
+    mutationFn: ({ bookingId, accept }: { bookingId: string; accept: boolean }) =>
+      services().bookings.respond(userId!, bookingId, accept),
+    onSettled: invalidate,
+  });
+}
+
+export function useCreateReview() {
+  const userId = useUserId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ReviewInput) => services().reviews.create(userId!, input),
+    onSettled: () =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: qk.bookings.all }),
+        client.invalidateQueries({ queryKey: qk.tutors.all }),
+      ]),
+  });
+}
+
+// ─── Messaging ──────────────────────────────────────────────────────────────
+
+export function useConversations() {
+  const userId = useUserId();
+  return useQuery({
+    queryKey: qk.conversations.list(userId ?? "guest"),
+    queryFn: () => services().messaging.listConversations(userId!),
+    enabled: Boolean(userId),
+  });
+}
+
+export function useConversation(id: string) {
+  const userId = useUserId();
+  return useQuery({
+    queryKey: qk.conversations.detail(id),
+    queryFn: () => services().messaging.getConversation(userId!, id),
+    enabled: Boolean(userId),
+  });
+}
+
+export function useMessages(conversationId: string) {
+  const userId = useUserId();
+  return useQuery({
+    queryKey: qk.conversations.messages(conversationId),
+    queryFn: () => services().messaging.listMessages(userId!, conversationId),
+    enabled: Boolean(userId),
+  });
+}
+
+export function useOpenConversation() {
+  const userId = useUserId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (tutorId: string) => services().messaging.openWithTutor(userId!, tutorId),
+    onSuccess: () => client.invalidateQueries({ queryKey: qk.conversations.all }),
+  });
+}
+
+export function useSendMessage(conversationId: string) {
+  const userId = useUserId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body: string) => services().messaging.send(userId!, conversationId, body),
+    onMutate: async (body) => {
+      const key = qk.conversations.messages(conversationId);
+      await client.cancelQueries({ queryKey: key });
+      const optimistic: Message = {
+        id: `optimistic-${Date.now()}`,
+        conversationId,
+        senderId: userId!,
+        body,
+        createdAt: new Date().toISOString(),
+      };
+      client.setQueryData<Message[]>(key, (old = []) => [...old, optimistic]);
+      return { optimisticId: optimistic.id };
+    },
+    onSuccess: (message, _body, ctx) => {
+      client.setQueryData<Message[]>(qk.conversations.messages(conversationId), (old = []) => {
+        const withoutOptimistic = old.filter((m) => m.id !== ctx?.optimisticId);
+        return withoutOptimistic.some((m) => m.id === message.id) ? withoutOptimistic : [...withoutOptimistic, message];
+      });
+    },
+    onError: (_e, _b, ctx) =>
+      client.setQueryData<Message[]>(qk.conversations.messages(conversationId), (old = []) =>
+        old.filter((m) => m.id !== ctx?.optimisticId),
+      ),
+    onSettled: () => client.invalidateQueries({ queryKey: qk.conversations.list(userId!) }),
+  });
+}
+
+export function useMarkConversationRead() {
+  const userId = useUserId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) => services().messaging.markRead(userId!, conversationId),
+    onSuccess: () =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: qk.conversations.list(userId!) }),
+        client.invalidateQueries({ queryKey: qk.notifications(userId!) }),
+      ]),
+  });
+}
+
+// ─── Notifications ──────────────────────────────────────────────────────────
+
+export function useNotifications() {
+  const userId = useUserId();
+  return useQuery({
+    queryKey: qk.notifications(userId ?? "guest"),
+    queryFn: () => services().notifications.list(userId!),
+    enabled: Boolean(userId),
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const userId = useUserId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => services().notifications.markAllRead(userId!),
+    onSuccess: () => client.invalidateQueries({ queryKey: qk.notifications(userId!) }),
+  });
+}
+
+/**
+ * Keeps caches fresh from realtime events (Supabase Realtime in production, the
+ * simulator in prototype mode). Mounted once in the app shell.
+ */
+export function useRealtimeSync(onNotification?: (n: import("@/domain/types").AppNotification) => void) {
+  const userId = useUserId();
+  const client = useQueryClient();
+  useEffect(() => {
+    if (!userId) return;
+    const s = services();
+    const offMessages = s.messaging.subscribe(userId, (event) => {
+      if (event.type === "message") {
+        client.setQueryData<Message[]>(qk.conversations.messages(event.conversationId), (old) =>
+          old && !old.some((m) => m.id === event.message.id) ? [...old, event.message] : old,
+        );
+        client.invalidateQueries({ queryKey: qk.conversations.list(userId) });
+      }
+      if (event.type === "read") {
+        client.invalidateQueries({ queryKey: qk.conversations.messages(event.conversationId) });
+      }
+    });
+    const offNotifications = s.notifications.subscribe(userId, (n) => {
+      client.invalidateQueries({ queryKey: qk.notifications(userId) });
+      if (n.type.startsWith("booking_")) {
+        client.invalidateQueries({ queryKey: qk.bookings.all });
+        client.invalidateQueries({ queryKey: ["dashboard"] });
+      }
+      onNotification?.(n);
+    });
+    return () => {
+      offMessages();
+      offNotifications();
+    };
+  }, [userId, client, onNotification]);
+}
+
+// ─── Tutor dashboard ────────────────────────────────────────────────────────
+
+export function useTutorStats() {
+  const { session } = useSession();
+  const tutorId = session?.tutorId;
+  return useQuery({
+    queryKey: qk.dashboard(tutorId ?? "none"),
+    queryFn: () => services().dashboard.getStats(session!.user.id, tutorId!),
+    enabled: Boolean(tutorId),
+  });
+}
+
+export function useUpdateAvailability() {
+  const { session } = useSession();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: { availability: AvailabilityWindow[]; instantBook: boolean }) =>
+      services().tutors.updateAvailability(session!.user.id, session!.tutorId!, patch),
+    onSuccess: (tutor) => {
+      client.setQueryData(qk.tutors.detail(tutor.id), tutor);
+      client.invalidateQueries({ queryKey: ["tutors", "slots"] });
+    },
+  });
+}
+
+/** True while the other participant is typing in the given conversation. */
+export function useTypingIndicator(conversationId: string) {
+  const userId = useUserId();
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    if (!userId) return;
+    return services().messaging.subscribe(userId, (event) => {
+      if (event.conversationId !== conversationId) return;
+      if (event.type === "typing" && event.userId !== userId) setTyping(event.isTyping);
+      if (event.type === "message" && event.message.senderId !== userId) setTyping(false);
+    });
+  }, [userId, conversationId]);
+  return typing;
+}

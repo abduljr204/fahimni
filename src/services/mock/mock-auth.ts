@@ -41,7 +41,7 @@ function setSession(userId: string | null): Session | null {
 }
 
 /** Remembers which student account to return to after visiting tutor mode. */
-const LAST_STUDENT_KEY = "naqraw.prototype.lastStudent";
+const LAST_STUDENT_KEY = "fahimni.prototype.lastStudent";
 
 export const mockAuthService: AuthService = {
   async getSession() {

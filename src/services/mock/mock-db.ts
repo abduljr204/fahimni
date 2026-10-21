@@ -6,7 +6,7 @@ import { createSeed, MOCK_STATE_VERSION, type MockState } from "./seed";
  * used and nothing is persisted.
  */
 
-const STORAGE_KEY = "naqraw.prototype.db";
+const STORAGE_KEY = "fahimni.prototype.db";
 
 type Listener = () => void;
 

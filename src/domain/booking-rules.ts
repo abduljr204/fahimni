@@ -141,7 +141,7 @@ export function toICS(params: {
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Naqraw//Lessons//EN",
+    "PRODID:-//Fahimni//Lessons//EN",
     "BEGIN:VEVENT",
     `UID:${params.uid}`,
     `DTSTAMP:${fmt(new Date())}`,

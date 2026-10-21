@@ -97,7 +97,7 @@ export const mockBookingService: BookingService = {
         status: tutor.instantBook ? "confirmed" : "pending",
         price: priceForDuration(tutor.hourlyRate, input.durationMinutes),
         paymentStatus: "unpaid",
-        meetingUrl: input.mode === "online" ? `https://meet.naqraw.example/demo-${id}` : undefined,
+        meetingUrl: input.mode === "online" ? `https://meet.fahimni.example/demo-${id}` : undefined,
         location: input.mode === "in_person" ? { ar: "مكتبة الكلية — القاعة 3", en: "Faculty library — Room 3" } : undefined,
         createdAt: now,
         updatedAt: now,

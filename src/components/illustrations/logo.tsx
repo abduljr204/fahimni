@@ -4,10 +4,7 @@ import { motion } from "motion/react";
 import { useId } from "react";
 import { cn } from "@/lib/cn";
 
-/**
- * Brand mark: a bowl with a dot above — the Arabic letter ن — which also reads as
- * an open book with a spark of an idea.
- */
+/** Brand mark: an open book with a spark of an idea above it. */
 export function LogoMark({ className, animated = false }: { className?: string; animated?: boolean }) {
   const gradientId = `logo${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   return (

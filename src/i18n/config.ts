@@ -2,7 +2,7 @@ import type { Locale, LocalizedText } from "@/domain/types";
 
 export const locales: Locale[] = ["ar", "en"];
 export const defaultLocale: Locale = "ar";
-export const LOCALE_COOKIE = "NAQRAW_LOCALE";
+export const LOCALE_COOKIE = "FAHIMNI_LOCALE";
 
 export const directions: Record<Locale, "rtl" | "ltr"> = { ar: "rtl", en: "ltr" };
 

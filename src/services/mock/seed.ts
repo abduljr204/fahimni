@@ -22,8 +22,8 @@ import type {
  */
 
 export const DEMO_PASSWORD = "demo1234";
-export const DEMO_STUDENT_EMAIL = "sara@demo.naqraw";
-export const DEMO_TUTOR_EMAIL = "youssef@demo.naqraw";
+export const DEMO_STUDENT_EMAIL = "sara@demo.fahimni";
+export const DEMO_TUTOR_EMAIL = "youssef@demo.fahimni";
 
 export interface MockUser extends UserAccount {
   /** Prototype only: plain-text demo password kept in the browser. Never do this in production. */
@@ -459,7 +459,7 @@ export function createSeed(now = new Date()): MockState {
     },
     ...extraStudents.map<MockUser>((s) => ({
       id: `u-${s.key}`,
-      email: `${s.key}@demo.naqraw`,
+      email: `${s.key}@demo.fahimni`,
       password: DEMO_PASSWORD,
       role: "student",
       displayName: s.name,
@@ -470,7 +470,7 @@ export function createSeed(now = new Date()): MockState {
     })),
     ...tutorSeeds.map<MockUser>((t) => ({
       id: `u-${t.key}`,
-      email: `${t.key}@demo.naqraw`,
+      email: `${t.key}@demo.fahimni`,
       password: DEMO_PASSWORD,
       role: "tutor",
       displayName: t.name,
@@ -578,7 +578,7 @@ export function createSeed(now = new Date()): MockState {
       status,
       price: priceForDuration(tutor.hourlyRate, durationMinutes),
       paymentStatus: status === "completed" || status === "confirmed" ? "simulated" : "unpaid",
-      meetingUrl: mode === "online" ? `https://meet.naqraw.example/demo-${id}` : undefined,
+      meetingUrl: mode === "online" ? `https://meet.fahimni.example/demo-${id}` : undefined,
       location: mode === "in_person" ? { ar: "مكتبة الكلية — القاعة 3", en: "Faculty library — Room 3" } : undefined,
       createdAt: iso(ago(60 * 24 * 3)),
       updatedAt: iso(ago(60 * 24 * 2)),

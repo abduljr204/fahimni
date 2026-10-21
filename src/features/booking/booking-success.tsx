@@ -81,7 +81,7 @@ export function BookingSuccess({ booking, tutor, subject }: { booking: Booking; 
 
   const downloadIcs = () => {
     const ics = toICS({
-      uid: `${booking.id}@naqraw`,
+      uid: `${booking.id}@fahimni`,
       title: `${l(subject.name)} — ${l(tutor.displayName)}`,
       description: fmt(t.booking.lessonWith, { name: l(tutor.displayName) }),
       startsAt: booking.startsAt,
@@ -91,7 +91,7 @@ export function BookingSuccess({ booking, tutor, subject }: { booking: Booking; 
     const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = "naqraw-lesson.ics";
+    a.download = "fahimni-lesson.ics";
     a.click();
     URL.revokeObjectURL(url);
   };

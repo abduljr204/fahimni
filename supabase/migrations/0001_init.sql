@@ -1,4 +1,4 @@
--- Naqraw — initial production schema (Phase 4).
+-- Fahimni — initial production schema (Phase 4).
 -- Mirrors src/domain/types.ts. Every table has Row Level Security enabled; the
 -- browser only ever uses the anon key, so these policies ARE the authorization layer.
 -- Privileged transitions (confirming bookings, payments) run in SECURITY DEFINER

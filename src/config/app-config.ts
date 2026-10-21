@@ -44,10 +44,10 @@ export const appConfig = {
 
 /** Product-level settings that are not secrets and may differ per market. */
 export const brand = {
-  name: { ar: "نقراو", en: "Naqraw" },
-  tagline: { ar: "نقراو مع بعض", en: "Let's study together" },
+  name: { ar: "فهمني", en: "Fahimni" },
+  tagline: { ar: "نتعلّم مع بعض", en: "Let's learn together" },
   currency: "LYD",
-  supportEmail: "hello@naqraw.example",
+  supportEmail: "hello@fahimni.example",
   lessonDurations: [30, 60, 90] as const,
   bookingWindowDays: 14,
 } as const;

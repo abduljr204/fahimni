@@ -2,12 +2,12 @@ import type { Dictionary } from "./ar";
 
 const en: Dictionary = {
   meta: {
-    title: "Naqraw — Private tutoring for university students",
+    title: "Fahimni — Private tutoring for university students",
     description: "Find a tutor or top student for any university course and book a lesson in a minute.",
   },
   common: {
-    appName: "Naqraw",
-    tagline: "Let's study together",
+    appName: "Fahimni",
+    tagline: "Let's learn together",
     back: "Back",
     close: "Close",
     cancel: "Cancel",
@@ -42,7 +42,7 @@ const en: Dictionary = {
     learnMore: "What does this mean?",
     sheetTitle: "You're using the prototype",
     sheetBody:
-      "This is a fully interactive prototype of Naqraw. Tutors, bookings and messages are demo data stored only in your browser. No real payments are taken and no notifications or messages leave this device.",
+      "This is a fully interactive prototype of Fahimni. Tutors, bookings and messages are demo data stored only in your browser. No real payments are taken and no notifications or messages leave this device.",
     points: [
       "Accounts and tutors are fictional, for demonstration",
       "Payments are simulated — nothing is charged",
@@ -92,7 +92,7 @@ const en: Dictionary = {
     featured: "Featured tutors",
     topRated: "Top rated",
     upcomingTitle: "Your next lesson",
-    howItWorks: "How Naqraw works",
+    howItWorks: "How Fahimni works",
     steps: [
       { title: "Search", body: "Pick a course and find the right tutor for your level and budget." },
       { title: "Book", body: "Choose a day and time that suits you, online or in person." },
@@ -286,7 +286,7 @@ const en: Dictionary = {
       lesson_reminder: "Reminder: {subject} with {name} is coming up",
       new_message: "New message from {name}",
       review_received: "{name} reviewed your {subject} lesson",
-      welcome: "Welcome to Naqraw! Start by finding a tutor for your course.",
+      welcome: "Welcome to Fahimni! Start by finding a tutor for your course.",
     },
   },
   auth: {
@@ -323,7 +323,7 @@ const en: Dictionary = {
   },
   profile: {
     title: "Profile",
-    guestTitle: "Welcome to Naqraw",
+    guestTitle: "Welcome to Fahimni",
     guestBody: "Create an account to book lessons, track them and message tutors.",
     student: "Student",
     tutor: "Tutor",

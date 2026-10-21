@@ -1,4 +1,4 @@
-# Naqraw · نقراو — Interactive Prototype
+# Fahimni · فهمني — Interactive Prototype
 
 Arabic-first tutoring marketplace for university students. This repository is the
 **Phase 1 prototype**: every screen works with clearly labelled demo data, and the
@@ -49,7 +49,7 @@ On a laptop, a **Demo guide** panel next to the app links to each journey.
 | Language | Profile → Language → English / العربية (full RTL ↔ LTR) |
 | Reset | Tap the dark demo banner → Reset demo data |
 
-Demo accounts (password `demo1234`): `sara@demo.naqraw` (student), `youssef@demo.naqraw` (tutor).
+Demo accounts (password `demo1234`): `sara@demo.fahimni` (student), `youssef@demo.fahimni` (tutor).
 
 Bookings with Youssef wait for his approval, so you can switch to tutor mode and accept
 them yourself. Other tutors either confirm instantly or auto-accept after a few seconds.

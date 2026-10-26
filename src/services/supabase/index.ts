@@ -34,6 +34,8 @@ export function createSupabaseServices(): AppServices {
     favorites: service as AppServices["favorites"],
     bookings: service as AppServices["bookings"],
     messaging: service as AppServices["messaging"],
+    proposals: service as AppServices["proposals"],
+    classroom: service as AppServices["classroom"],
     notifications: service as AppServices["notifications"],
     payments: service as AppServices["payments"],
     dashboard: service as AppServices["dashboard"],

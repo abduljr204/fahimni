@@ -34,6 +34,9 @@ export const mockPlatformService: PlatformService = {
         commissionBps: input.commissionBps,
         minHourlyRate: { currency: brand.currency, amountMinor: input.minHourlyRateMinor },
         maxHourlyRate: { currency: brand.currency, amountMinor: input.maxHourlyRateMinor },
+        inPersonPaymentOptions: input.inPersonPaymentOptions,
+        classroomOpensMinutesBefore: input.classroomOpensMinutesBefore,
+        classroomClosesMinutesAfter: input.classroomClosesMinutesAfter,
         updatedAt: new Date().toISOString(),
         updatedBy: actorUserId,
       };
@@ -47,7 +50,7 @@ export const mockPlatformService: PlatformService = {
     const s = mockDb.data;
     assertAdmin(s, actorUserId);
 
-    const lessons = s.bookings.filter((b) => b.status === "confirmed" || b.status === "completed");
+    const lessons = s.bookings.filter((b) => b.status === "confirmed");
     const nameOf = (userId: string) => s.users.find((u) => u.id === userId)?.displayName ?? {};
     const tutorNameOf = (tutorId: string) => s.tutors.find((t) => t.id === tutorId)?.displayName ?? {};
 

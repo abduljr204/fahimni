@@ -30,7 +30,8 @@ export interface BaseEntity {
 
 // ─── Users ──────────────────────────────────────────────────────────────────
 
-export type UserRole = "student" | "tutor" | "admin";
+/** "parent" manages bookings and messages for younger students who have no login of their own. */
+export type UserRole = "student" | "tutor" | "admin" | "parent";
 
 export interface UserAccount extends BaseEntity {
   email: string;
@@ -47,6 +48,20 @@ export interface StudentProfile extends BaseEntity {
   university: LocalizedText;
   major: LocalizedText;
   studyYear: number;
+  level?: GradeLevel;
+  /**
+   * Set for younger students: this parent books, pays and messages on their behalf,
+   * and may join their classroom.
+   */
+  guardianUserId?: ID;
+}
+
+/** A student whose bookings and messages a parent manages. */
+export interface ManagedStudent {
+  userId: ID;
+  displayName: LocalizedText;
+  avatarHue: number;
+  level?: GradeLevel;
 }
 
 export interface Session {
@@ -54,6 +69,8 @@ export interface Session {
   student?: StudentProfile;
   /** Present when the signed-in user owns a tutor profile. */
   tutorId?: ID;
+  /** Present for parents: the students they act for. */
+  managedStudents?: ManagedStudent[];
   isDemo: boolean;
 }
 
@@ -79,6 +96,7 @@ export interface Subject {
 }
 
 export type LessonMode = "online" | "in_person";
+export type GradeLevel = "secondary" | "university_early" | "university_advanced" | "postgraduate";
 export type SpokenLanguage = "ar" | "libyan" | "fr" | "en" | "amazigh";
 export type VerificationStatus = "verified" | "pending" | "unverified";
 
@@ -102,6 +120,11 @@ export interface TutorProfile extends BaseEntity {
   subjectIds: ID[];
   languages: SpokenLanguage[];
   modes: LessonMode[];
+  /** Degrees, certificates and relevant achievements, shown before booking. */
+  qualifications: LocalizedText[];
+  gradeLevels: GradeLevel[];
+  /** Short introduction video. In the prototype it is a labelled placeholder. */
+  introVideo?: { url?: string; durationSeconds: number; transcript: LocalizedText };
   hourlyRate: Money;
   yearsExperience: number;
   rating: number;
@@ -134,13 +157,22 @@ export interface PlatformSettings {
   commissionBps: number;
   minHourlyRate: Money;
   maxHourlyRate: Money;
+  /**
+   * Payment options offered for in-person lessons (at least one). Online lessons are
+   * always paid in full through the platform.
+   */
+  inPersonPaymentOptions: Settlement[];
+  /** The classroom opens this many minutes before the lesson starts… */
+  classroomOpensMinutesBefore: number;
+  /** …and closes this many minutes after it is scheduled to end. */
+  classroomClosesMinutesAfter: number;
   updatedAt: ISODateTime;
   updatedBy?: ID;
 }
 
 /**
- * How the student pays. Online lessons are paid in full through the app. For in-person
- * lessons the student pays only the commission in the app and the rest in cash to the tutor.
+ * How the student pays: "in_app" is the full price through the platform;
+ * "deposit_and_cash" (in-person only) is the platform fee now and the rest in cash to the tutor.
  */
 export type Settlement = "in_app" | "deposit_and_cash";
 
@@ -166,8 +198,12 @@ export interface LessonPricing {
 
 // ─── Bookings ───────────────────────────────────────────────────────────────
 
-export type BookingStatus = "pending" | "confirmed" | "declined" | "cancelled" | "completed";
-export type PaymentStatus = "unpaid" | "simulated" | "authorized" | "paid" | "refunded";
+/** The agreement between student and tutor. Payment and lesson completion are tracked separately. */
+export type BookingStatus = "pending" | "confirmed" | "declined" | "cancelled";
+/** State of the in-app part of the payment. */
+export type PaymentStatus = "unpaid" | "simulated" | "authorized" | "paid" | "partially_refunded" | "refunded";
+/** What happened to the lesson itself. Only meaningful for confirmed bookings. */
+export type LessonStatus = "scheduled" | "in_progress" | "completed";
 
 export interface Booking extends BaseEntity {
   studentId: ID;
@@ -180,8 +216,19 @@ export interface Booking extends BaseEntity {
   pricing: LessonPricing;
   /** State of the in-app part of the payment (`pricing.dueInApp`). */
   paymentStatus: PaymentStatus;
+  lessonStatus: LessonStatus;
+  /** Who made the booking: the student, or their parent. */
+  bookedBy: ID;
+  /** Set when the booking came from a tutor's lesson proposal. */
+  proposalId?: ID;
+  objectives?: string;
   note?: string;
-  meetingUrl?: string;
+  /** General area for in-person lessons (city, district). Visible before payment. */
+  area?: string;
+  /**
+   * Exact meeting place. Only returned to participants once the booking is confirmed
+   * and paid; see `canSeeMeetingDetails`.
+   */
   location?: LocalizedText;
   /** Set once the student has reviewed a completed lesson. */
   reviewId?: ID;
@@ -193,10 +240,12 @@ export interface BookingDetails extends Booking {
   tutor: Pick<TutorProfile, "id" | "userId" | "displayName" | "avatarHue" | "avatarUrl" | "headline">;
   student: Pick<UserAccount, "id" | "displayName" | "avatarHue" | "avatarUrl">;
   subject: Subject;
+  /** False when `location` was withheld because the booking isn't confirmed and paid. */
+  meetingDetailsVisible: boolean;
 }
 
 export type PaymentPurpose = "lesson" | "commission_deposit";
-export type PaymentRecordStatus = "pending" | "requires_action" | "succeeded" | "failed" | "refunded";
+export type PaymentRecordStatus = "pending" | "requires_action" | "succeeded" | "failed" | "partially_refunded" | "refunded";
 
 /** One charge made through the app. `provider: "simulated"` records never moved money. */
 export interface Payment extends BaseEntity {
@@ -208,7 +257,45 @@ export interface Payment extends BaseEntity {
   provider: "simulated" | (string & {});
   providerReference: string;
   status: PaymentRecordStatus;
+  refundedAmount?: Money;
   updatedAt: ISODateTime;
+}
+
+// ─── Lesson proposals ───────────────────────────────────────────────────────
+
+export type ProposalStatus = "pending" | "accepted" | "declined" | "withdrawn" | "expired";
+
+/**
+ * A lesson offered by a tutor inside a conversation. Its price is fixed when it is sent;
+ * the student reviews it and pays to turn it into a confirmed booking.
+ */
+export interface LessonProposal extends BaseEntity {
+  conversationId: ID;
+  tutorId: ID;
+  tutorUserId: ID;
+  /** The learner (a student, or a child managed by a parent). */
+  studentId: ID;
+  subjectId: ID;
+  objectives: string;
+  startsAt: ISODateTime;
+  durationMinutes: number;
+  mode: LessonMode;
+  /** General area for in-person lessons. Exact places are shared after payment. */
+  area?: string;
+  /** Rate and commission at the time of the proposal; the payment option is chosen at checkout. */
+  pricing: LessonPricing;
+  status: ProposalStatus;
+  expiresAt: ISODateTime;
+  bookingId?: ID;
+  respondedAt?: ISODateTime;
+  /** Sent by the prototype's simulated tutor. */
+  isSimulated?: boolean;
+}
+
+export interface ProposalDetails extends LessonProposal {
+  tutor: Pick<TutorProfile, "id" | "userId" | "displayName" | "avatarHue" | "avatarUrl" | "headline">;
+  student: Pick<UserAccount, "id" | "displayName" | "avatarHue">;
+  subject: Subject;
 }
 
 export interface TimeSlot {
@@ -225,6 +312,7 @@ export interface DaySlots {
 // ─── Messaging ──────────────────────────────────────────────────────────────
 
 export interface Conversation extends BaseEntity {
+  /** The learner. For a managed child, their parent also takes part. */
   studentId: ID;
   tutorUserId: ID;
   tutorId: ID;
@@ -238,15 +326,71 @@ export interface ConversationSummary extends Conversation {
     subtitle: LocalizedText;
   };
   unreadCount: number;
+  /**
+   * True once the pair has a confirmed, paid booking. Before that, contact details and
+   * exact meeting places are blocked in this conversation.
+   */
+  unlocked: boolean;
+  /** Set when a parent manages the learner's side of this conversation. */
+  guardian?: Pick<UserAccount, "id" | "displayName">;
 }
+
+export interface Attachment {
+  id: ID;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  /** A data URL in the prototype; a short-lived signed URL in production. */
+  url: string;
+  width?: number;
+  height?: number;
+}
+
+export type MessageKind = "text" | "proposal" | "system";
+export type SystemEvent = "contact_unlocked" | "contact_locked";
 
 export interface Message extends BaseEntity {
   conversationId: ID;
   senderId: ID;
   body: string;
+  kind?: MessageKind;
+  attachments?: Attachment[];
+  proposalId?: ID;
+  systemEvent?: SystemEvent;
   readAt?: ISODateTime;
   /** Auto-generated reply produced by the prototype's simulator. */
   isSimulated?: boolean;
+}
+
+// ─── Classroom ──────────────────────────────────────────────────────────────
+
+export type ClassroomRole = "tutor" | "student" | "guardian";
+
+export interface ClassroomParticipant {
+  userId: ID;
+  role: ClassroomRole;
+  displayName: LocalizedText;
+  avatarHue: number;
+}
+
+/**
+ * Issued by the server to one authorised participant of a confirmed, paid online
+ * booking, inside the entry window. The classroom URL alone grants nothing.
+ */
+export interface ClassroomTicket {
+  bookingId: ID;
+  roomName: string;
+  /** Short-lived credential for the video provider ("simulated" in the prototype). */
+  token: string;
+  provider: "simulated" | (string & {});
+  /** Video provider endpoint in production. */
+  serverUrl?: string;
+  expiresAt: ISODateTime;
+  me: ClassroomParticipant;
+  participants: ClassroomParticipant[];
+  lesson: { subject: LocalizedText; startsAt: ISODateTime; durationMinutes: number; objectives?: string };
+  /** Lessons are never recorded by default. */
+  recording: false;
 }
 
 // ─── Notifications ──────────────────────────────────────────────────────────
@@ -259,6 +403,9 @@ export type NotificationType =
   | "lesson_reminder"
   | "new_message"
   | "review_received"
+  | "proposal_received"
+  | "proposal_accepted"
+  | "proposal_declined"
   | "welcome";
 
 export interface AppNotification extends BaseEntity {
@@ -271,6 +418,7 @@ export interface AppNotification extends BaseEntity {
     startsAt?: ISODateTime;
     bookingId?: ID;
     conversationId?: ID;
+    proposalId?: ID;
   };
   readAt?: ISODateTime;
 }

@@ -12,6 +12,8 @@ import {
   ShieldCheck,
   Smartphone,
   UserPlus,
+  Users,
+  Video,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { LogoMark } from "@/components/illustrations/logo";
@@ -94,6 +96,7 @@ export function DesktopGuide() {
           <Journey index={1} icon={<Compass className="size-4" />} label={t.demo.journeys.search} href="/tutors" />
           <Journey index={2} icon={<CalendarCheck className="size-4" />} label={t.demo.journeys.book} href="/tutors/t-amine" />
           <Journey index={3} icon={<MessageCircle className="size-4" />} label={t.demo.journeys.chat} href="/messages" />
+          <Journey index={3} icon={<Video className="size-4" />} label={t.demo.journeys.proposal} href="/tutors/t-youssef" />
           <Journey
             index={4}
             icon={<LayoutDashboard className="size-4" />}
@@ -106,8 +109,9 @@ export function DesktopGuide() {
             label={t.demo.journeys.admin}
             onClick={() => roles.switchTo("admin")}
           />
+          <Journey index={6} icon={<Users className="size-4" />} label={t.demo.journeys.parent} onClick={() => roles.switchTo("parent")} />
           <Journey
-            index={6}
+            index={7}
             icon={<Languages className="size-4" />}
             label={t.demo.journeys.language}
             onClick={() => change(locale === "ar" ? "en" : "ar")}
@@ -116,8 +120,8 @@ export function DesktopGuide() {
 
         <div className="mt-6 border-t border-ink-100 pt-5">
           <p className="mb-2 text-xs font-semibold tracking-wide text-ink-500 uppercase">{t.demo.personas}</p>
-          <div className="grid grid-cols-3 gap-2">
-            {(["student", "tutor", "admin"] as const).map((r) => (
+          <div className="grid grid-cols-2 gap-2">
+            {(["student", "tutor", "parent", "admin"] as const).map((r) => (
               <button
                 key={r}
                 type="button"
@@ -128,8 +132,8 @@ export function DesktopGuide() {
                   role === r ? "border-brand-500 bg-brand-50 text-brand-700" : "border-ink-200 text-ink-700 hover:border-ink-300",
                 )}
               >
-                {r === "student" ? <GraduationCap className="size-4" /> : r === "tutor" ? <LayoutDashboard className="size-4" /> : <ShieldCheck className="size-4" />}
-                {r === "student" ? t.demo.asStudent : r === "tutor" ? t.demo.asTutor : t.demo.asAdmin}
+                {{ student: <GraduationCap className="size-4" />, tutor: <LayoutDashboard className="size-4" />, parent: <Users className="size-4" />, admin: <ShieldCheck className="size-4" /> }[r]}
+                {{ student: t.demo.asStudent, tutor: t.demo.asTutor, parent: t.demo.asParent, admin: t.demo.asAdmin }[r]}
               </button>
             ))}
           </div>

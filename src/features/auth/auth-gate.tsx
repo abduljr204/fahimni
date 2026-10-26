@@ -91,7 +91,8 @@ export function AuthGate({ children, role, title, body }: { children: ReactNode;
     );
   }
   if (status === "guest") return <SignInPrompt title={title} body={body} />;
-  if (role === "student" && current !== "student") return <TutorModeNotice />;
+  // Parents book and learn on behalf of a managed student.
+  if (role === "student" && current !== "student" && current !== "parent") return <TutorModeNotice />;
   if (role === "tutor" && current !== "tutor") return <SignInPrompt title={title} body={body} />;
   return <>{children}</>;
 }

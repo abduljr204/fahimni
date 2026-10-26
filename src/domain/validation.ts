@@ -25,6 +25,17 @@ export const signInSchema = z.object({
 });
 export type SignInInput = z.infer<typeof signInSchema>;
 
+const settlementSchema = z.enum(["in_app", "deposit_and_cash"]);
+
+/**
+ * The amounts the student saw and agreed to. If the tutor's rate, the commission or the
+ * payment split changed in the meantime, the request is rejected with `price_changed`.
+ */
+const expectedPrice = {
+  expectedTotalMinor: z.number().int().nonnegative(),
+  expectedDueInAppMinor: z.number().int().nonnegative(),
+};
+
 export const createBookingSchema = z.object({
   tutorId: z.string().min(1),
   subjectId: z.string().min(1, "pickSubject"),
@@ -34,14 +45,34 @@ export const createBookingSchema = z.object({
     .refine((d) => (brand.lessonDurations as readonly number[]).includes(d), "required"),
   mode: z.enum(["online", "in_person"]),
   note: z.string().trim().max(500, "noteTooLong").optional(),
-  /**
-   * The amounts the student saw and agreed to. If the tutor's rate or the commission
-   * changed in the meantime, the booking is rejected with `price_changed`.
-   */
-  expectedTotalMinor: z.number().int().nonnegative(),
-  expectedDueInAppMinor: z.number().int().nonnegative(),
+  settlement: settlementSchema,
+  /** Parents book for a managed student; students leave it out. */
+  forStudentId: z.string().min(1).optional(),
+  ...expectedPrice,
 });
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
+
+/** Tutor's offer, sent from the conversation. The price comes from the tutor's current rate. */
+export const createProposalSchema = z.object({
+  conversationId: z.string().min(1),
+  subjectId: z.string().min(1, "pickSubject"),
+  objectives: z.string().trim().min(10, "objectivesTooShort").max(600, "noteTooLong"),
+  startsAt: z.iso.datetime({ offset: true, error: "pickTime" }),
+  durationMinutes: z
+    .number()
+    .refine((d) => (brand.lessonDurations as readonly number[]).includes(d), "required"),
+  mode: z.enum(["online", "in_person"]),
+  /** City or district only; the service rejects exact addresses before payment. */
+  area: z.string().trim().max(80, "noteTooLong").optional(),
+});
+export type CreateProposalInput = z.infer<typeof createProposalSchema>;
+
+export const acceptProposalSchema = z.object({
+  proposalId: z.string().min(1),
+  settlement: settlementSchema,
+  ...expectedPrice,
+});
+export type AcceptProposalInput = z.infer<typeof acceptProposalSchema>;
 
 /** Tutors set whole-dinar hourly rates; the platform limits are checked by the service. */
 export const hourlyRateSchema = z.object({
@@ -54,14 +85,36 @@ export const platformSettingsSchema = z
     commissionBps: z.number().int().min(0, "commissionRange").max(MAX_COMMISSION_BPS, "commissionRange"),
     minHourlyRateMinor: z.number().int().positive("required"),
     maxHourlyRateMinor: z.number().int().positive("required"),
+    inPersonPaymentOptions: z.array(settlementSchema).min(1, "pickPaymentOption"),
+    classroomOpensMinutesBefore: z.number().int().min(0, "windowRange").max(120, "windowRange"),
+    classroomClosesMinutesAfter: z.number().int().min(0, "windowRange").max(120, "windowRange"),
   })
   .refine((s) => s.minHourlyRateMinor <= s.maxHourlyRateMinor, { message: "minAboveMax", path: ["maxHourlyRateMinor"] });
 export type PlatformSettingsInput = z.infer<typeof platformSettingsSchema>;
 
-export const sendMessageSchema = z.object({
-  conversationId: z.string().min(1),
-  body: z.string().trim().min(1, "required").max(2000, "messageTooLong"),
+/** Textbook pages and exercises: images or PDFs. */
+export const ATTACHMENT_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"] as const;
+export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+export const MAX_ATTACHMENTS = 4;
+
+export const attachmentSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  mimeType: z.enum(ATTACHMENT_TYPES, { error: "fileType" }),
+  sizeBytes: z.number().int().positive().max(MAX_ATTACHMENT_BYTES, "fileTooLarge"),
+  url: z.string().min(1),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
 });
+export type AttachmentInput = z.infer<typeof attachmentSchema>;
+
+export const sendMessageSchema = z
+  .object({
+    conversationId: z.string().min(1),
+    body: z.string().trim().max(2000, "messageTooLong"),
+    attachments: z.array(attachmentSchema).max(MAX_ATTACHMENTS, "tooManyFiles").default([]),
+  })
+  .refine((m) => m.body.length > 0 || m.attachments.length > 0, { message: "required", path: ["body"] });
+export type SendMessageInput = z.input<typeof sendMessageSchema>;
 
 export const reviewSchema = z.object({
   bookingId: z.string().min(1),

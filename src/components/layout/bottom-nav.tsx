@@ -21,7 +21,7 @@ interface NavItem {
 
 /** Routes that show the bottom navigation. Flows such as booking or chat hide it. */
 export function shouldShowNav(path: string): boolean {
-  if (path.startsWith("/book") || path.startsWith("/auth")) return false;
+  if (path.startsWith("/book") || path.startsWith("/auth") || path.startsWith("/classroom") || path.startsWith("/proposals")) return false;
   if (/^\/messages\/.+/.test(path)) return false;
   if (/^\/tutors\/.+/.test(path)) return false;
   return true;

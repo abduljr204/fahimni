@@ -12,8 +12,8 @@ import { Badge, Card, SectionHeader, Skeleton } from "@/components/ui/primitives
 import { useToast } from "@/components/ui/toast";
 import { brand } from "@/config/app-config";
 import { money as toMoney, toMajor, toMinor } from "@/domain/money";
-import { bpsToPercent, isRateWithinLimits, percentToBps, priceLesson } from "@/domain/pricing";
-import type { Money, PlatformSettings } from "@/domain/types";
+import { bpsToPercent, isRateWithinLimits, percentToBps, priceLesson, SETTLEMENTS } from "@/domain/pricing";
+import type { Money, PlatformSettings, Settlement } from "@/domain/types";
 import { fieldErrors, platformSettingsSchema } from "@/domain/validation";
 import { SignInPrompt } from "@/features/auth/auth-gate";
 import { useRoleSwitch } from "@/features/demo/use-role-switch";
@@ -125,12 +125,19 @@ function SettingsForm({ settings }: { settings: PlatformSettings }) {
   const [commission, setCommission] = useState(String(bpsToPercent(settings.commissionBps)));
   const [minText, setMinText] = useState(String(toMajor(settings.minHourlyRate.amountMinor, currency)));
   const [maxText, setMaxText] = useState(String(toMajor(settings.maxHourlyRate.amountMinor, currency)));
+  const [options, setOptions] = useState<Settlement[]>(settings.inPersonPaymentOptions);
+  const [opensText, setOpensText] = useState(String(settings.classroomOpensMinutesBefore));
+  const [closesText, setClosesText] = useState(String(settings.classroomClosesMinutesAfter));
   const [submitted, setSubmitted] = useState(0);
 
   const input = {
     commissionBps: percentToBps(parseNumber(commission)),
     minHourlyRateMinor: toMinor(parseNumber(minText), currency),
     maxHourlyRateMinor: toMinor(parseNumber(maxText), currency),
+    // Kept in a fixed order so "dirty" doesn't depend on click order.
+    inPersonPaymentOptions: SETTLEMENTS.filter((s) => options.includes(s)),
+    classroomOpensMinutesBefore: parseNumber(opensText),
+    classroomClosesMinutesAfter: parseNumber(closesText),
   };
   const parsed = platformSettingsSchema.safeParse(input);
   const errors = parsed.success ? {} : fieldErrors(parsed.error);
@@ -143,7 +150,10 @@ function SettingsForm({ settings }: { settings: PlatformSettings }) {
   const dirty =
     input.commissionBps !== settings.commissionBps ||
     input.minHourlyRateMinor !== settings.minHourlyRate.amountMinor ||
-    input.maxHourlyRateMinor !== settings.maxHourlyRate.amountMinor;
+    input.maxHourlyRateMinor !== settings.maxHourlyRate.amountMinor ||
+    input.inPersonPaymentOptions.join() !== SETTLEMENTS.filter((s) => settings.inPersonPaymentOptions.includes(s)).join() ||
+    input.classroomOpensMinutesBefore !== settings.classroomOpensMinutesBefore ||
+    input.classroomClosesMinutesAfter !== settings.classroomClosesMinutesAfter;
 
   const example = parsed.success
     ? priceLesson({ hourlyRate: toMoney(50, currency), durationMinutes: 60, mode: "online", commissionBps: input.commissionBps })
@@ -211,6 +221,54 @@ function SettingsForm({ settings }: { settings: PlatformSettings }) {
             onChange={(e) => setMaxText(e.target.value)}
           />
         </div>
+
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium text-ink-700">{t.admin.paymentOptions}</legend>
+          {SETTLEMENTS.map((s) => (
+            <label key={s} className="flex cursor-pointer items-center gap-3 rounded-2xl bg-ink-50 p-3 text-[14px]">
+              <input
+                type="checkbox"
+                className="size-5 accent-brand-600"
+                checked={options.includes(s)}
+                onChange={(e) => setOptions((o) => (e.target.checked ? [...o, s] : o.filter((x) => x !== s)))}
+              />
+              {s === "in_app" ? t.admin.optionFull : t.admin.optionDeposit}
+            </label>
+          ))}
+          <p className={`text-[13px] ${message("inPersonPaymentOptions") ? "font-medium text-coral-600" : "text-ink-500"}`}>
+            {message("inPersonPaymentOptions") ?? t.admin.paymentOptionsHint}
+          </p>
+        </fieldset>
+
+        <fieldset>
+          <legend className="mb-1.5 text-sm font-medium text-ink-700">{t.admin.classroomWindow}</legend>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label={t.admin.opensBefore}
+              error={message("classroomOpensMinutesBefore")}
+              shakeKey={submitted}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={120}
+              dir="ltr"
+              value={opensText}
+              onChange={(e) => setOpensText(e.target.value)}
+            />
+            <Input
+              label={t.admin.closesAfter}
+              error={message("classroomClosesMinutesAfter")}
+              shakeKey={submitted}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={120}
+              dir="ltr"
+              value={closesText}
+              onChange={(e) => setClosesText(e.target.value)}
+            />
+          </div>
+        </fieldset>
 
         <AnimatePresence mode="wait">
           {example && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { BellOff, CalendarCheck, CalendarClock, CalendarX2, CheckCheck, MessageCircle, PartyPopper, Star } from "lucide-react";
+import { BellOff, CalendarCheck, CalendarClock, CalendarX2, CheckCheck, FileText, MessageCircle, PartyPopper, Star } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AppLink } from "@/components/layout/app-link";
 import { Screen, TopBar } from "@/components/layout/screen";
@@ -23,6 +23,9 @@ const meta: Record<NotificationType, { icon: LucideIcon; tone: string }> = {
   lesson_reminder: { icon: CalendarClock, tone: "bg-brand-50 text-brand-600" },
   new_message: { icon: MessageCircle, tone: "bg-brand-50 text-brand-600" },
   review_received: { icon: Star, tone: "bg-accent-100 text-accent-600" },
+  proposal_received: { icon: FileText, tone: "bg-brand-50 text-brand-600" },
+  proposal_accepted: { icon: CalendarCheck, tone: "bg-mint-100 text-mint-600" },
+  proposal_declined: { icon: CalendarX2, tone: "bg-coral-100 text-coral-600" },
   welcome: { icon: PartyPopper, tone: "bg-brand-50 text-brand-600" },
 };
 

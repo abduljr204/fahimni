@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { CalendarClock, CalendarX2, Check, Hourglass, MessageCircle, Star, Video, X } from "lucide-react";
+import { CalendarClock, CalendarX2, Check, CreditCard, Hourglass, MessageCircle, Star, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { AppLink } from "@/components/layout/app-link";
@@ -13,13 +13,17 @@ import { BottomSheet, ConfirmDialog } from "@/components/ui/overlays";
 import { Badge, Skeleton, StarInput } from "@/components/ui/primitives";
 import { Tabs } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
+import { isPaid } from "@/domain/access";
 import { canCancel, isFreeCancellation, isUpcoming } from "@/domain/booking-rules";
+import { refundFor } from "@/domain/refunds";
 import type { BookingDetails } from "@/domain/types";
 import { AuthGate } from "@/features/auth/auth-gate";
+import { JoinLessonButton } from "@/features/classroom/join-lesson-button";
 import {
   useCancelBooking,
   useCreateReview,
   useOpenConversation,
+  usePayBooking,
   useRespondToBooking,
   useStudentBookings,
   useTutorBookings,
@@ -99,7 +103,7 @@ function ReviewSheet({ booking, onClose }: { booking: BookingDetails | null; onC
 }
 
 function LessonsList() {
-  const { t, href } = useI18n();
+  const { t, href, fmt, money } = useI18n();
   const { role } = useSession();
   const router = useRouter();
   const toast = useToast();
@@ -109,6 +113,7 @@ function LessonsList() {
   const { data, isLoading } = isTutor ? tutorQuery : studentQuery;
   const cancel = useCancelBooking();
   const respond = useRespondToBooking();
+  const pay = usePayBooking();
   const openChat = useOpenConversation();
 
   const [tab, setTab] = useState<Tab>("upcoming");
@@ -126,8 +131,6 @@ function LessonsList() {
 
   const list = groups[tab];
 
-  const join = () => toast.demo(t.lessons.join, t.lessons.joinSimulated);
-
   const message = (b: BookingDetails) => {
     if (isTutor) {
       router.push(href("/messages"));
@@ -140,10 +143,12 @@ function LessonsList() {
     if (tab === "upcoming") {
       return (
         <>
-          {b.mode === "online" && (
-            <Button size="sm" className="flex-1" onClick={join}>
-              <Video className="size-4" /> {t.lessons.join}
+          {!isTutor && !isPaid(b.paymentStatus) ? (
+            <Button size="sm" variant="accent" className="flex-1" loading={pay.isPending && pay.variables === b.id} onClick={() => pay.mutate(b.id)}>
+              <CreditCard className="size-4" /> {t.lessons.payNow}
             </Button>
+          ) : (
+            <JoinLessonButton booking={b} />
           )}
           <Button size="sm" variant="secondary" className="flex-1" onClick={() => message(b)}>
             <MessageCircle className="size-4" /> {t.tutor.message}
@@ -186,7 +191,7 @@ function LessonsList() {
         </Button>
       );
     }
-    if (!isTutor && b.status === "completed") {
+    if (!isTutor && b.lessonStatus === "completed") {
       return b.reviewId ? (
         <Badge tone="mint" className="mx-auto">
           <Check className="size-3.5" /> {t.lessons.reviewed}
@@ -198,6 +203,15 @@ function LessonsList() {
       );
     }
     return null;
+  };
+
+  // Shown before confirming, using the same rules the service applies.
+  const cancelBody = (b: BookingDetails) => {
+    const quote = refundFor(b, isTutor ? "tutor" : "student");
+    const terms = isTutor || isFreeCancellation(b) ? t.lessons.cancelBodyFree : t.lessons.cancelBodyLate;
+    if (!isPaid(b.paymentStatus)) return terms;
+    const refund = quote.refund.amountMinor > 0 ? fmt(t.lessons.refundLine, { amount: money(quote.refund) }) : t.lessons.noRefundLine;
+    return `${terms} ${refund}`;
   };
 
   const empty = {
@@ -252,7 +266,7 @@ function LessonsList() {
         open={Boolean(toCancel)}
         onClose={() => setToCancel(null)}
         title={t.lessons.cancelTitle}
-        body={toCancel ? (isFreeCancellation(toCancel) ? t.lessons.cancelBodyFree : t.lessons.cancelBodyLate) : undefined}
+        body={toCancel ? cancelBody(toCancel) : undefined}
         confirmLabel={t.lessons.cancel}
         cancelLabel={t.lessons.keep}
         loading={cancel.isPending}
@@ -274,10 +288,12 @@ function LessonsList() {
 }
 
 export function LessonsScreen() {
-  const { t } = useI18n();
+  const { t, l, fmt } = useI18n();
+  const { session } = useSession();
+  const child = session?.user.role === "parent" ? session.managedStudents?.[0] : undefined;
   return (
     <Screen>
-      <PageTitle title={t.lessons.title} />
+      <PageTitle title={child ? fmt(t.lessons.titleFor, { name: l(child.displayName).split(" ")[0] }) : t.lessons.title} />
       <AuthGate>
         <LessonsList />
       </AuthGate>

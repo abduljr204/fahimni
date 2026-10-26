@@ -24,7 +24,7 @@ export const mockDashboardService: TutorDashboardService = {
       mine
         .filter((b) => {
           const t = new Date(b.startsAt).getTime();
-          return (b.status === "completed" || b.status === "confirmed") && t >= from && t < to;
+          return b.status === "confirmed" && t >= from && t < to;
         })
         .reduce((sum, b) => sum + b.pricing.tutorEarnings.amountMinor, 0);
 

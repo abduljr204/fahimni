@@ -86,7 +86,7 @@ export function BookingSuccess({ booking, tutor, subject }: { booking: Booking; 
       description: fmt(t.booking.lessonWith, { name: l(tutor.displayName) }),
       startsAt: booking.startsAt,
       durationMinutes: booking.durationMinutes,
-      location: booking.meetingUrl ?? l(booking.location),
+      location: booking.mode === "online" ? `${window.location.origin}${href(`/classroom/${booking.id}`)}` : l(booking.location),
     });
     const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
     const a = document.createElement("a");

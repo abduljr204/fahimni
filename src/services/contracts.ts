@@ -5,13 +5,16 @@ import type {
   AvailabilityWindow,
   Booking,
   BookingDetails,
+  ClassroomTicket,
   ConversationSummary,
   DaySlots,
   ID,
   LessonMode,
   Message,
+  LessonProposal,
   Money,
   PlatformSettings,
+  ProposalDetails,
   Review,
   Session,
   Subject,
@@ -19,7 +22,16 @@ import type {
   TutorProfile,
   TutorStats,
 } from "@/domain/types";
-import type { CreateBookingInput, PlatformSettingsInput, ReviewInput, SignInInput, SignUpInput } from "@/domain/validation";
+import type {
+  AcceptProposalInput,
+  CreateBookingInput,
+  CreateProposalInput,
+  PlatformSettingsInput,
+  ReviewInput,
+  SendMessageInput,
+  SignInInput,
+  SignUpInput,
+} from "@/domain/validation";
 
 /**
  * Service contracts. The UI depends only on these interfaces; each backend
@@ -83,12 +95,19 @@ export interface FavoritesService {
   toggle(userId: ID, tutorId: ID): Promise<boolean>;
 }
 
+/**
+ * Bookings returned to a participant hide the exact meeting place until the booking is
+ * confirmed and paid (`BookingDetails.meetingDetailsVisible`).
+ */
 export interface BookingService {
   getAvailableSlots(tutorId: ID, durationMinutes: number, days: number): Promise<DaySlots[]>;
+  /** Students book for themselves; parents pass `forStudentId`. */
   create(actorUserId: ID, input: CreateBookingInput): Promise<Booking>;
   getById(actorUserId: ID, bookingId: ID): Promise<BookingDetails | null>;
-  listForStudent(studentUserId: ID): Promise<BookingDetails[]>;
+  /** The actor must be the student or their parent. */
+  listForStudent(actorUserId: ID, studentUserId: ID): Promise<BookingDetails[]>;
   listForTutor(actorUserId: ID, tutorId: ID): Promise<BookingDetails[]>;
+  /** Refunds the in-app payment according to `domain/refunds.ts`. */
   cancel(actorUserId: ID, bookingId: ID): Promise<Booking>;
   respond(actorUserId: ID, bookingId: ID, accept: boolean): Promise<Booking>;
 }
@@ -98,13 +117,24 @@ export type MessagingEvent =
   | { type: "typing"; conversationId: ID; userId: ID; isTyping: boolean }
   | { type: "read"; conversationId: ID; userId: ID };
 
+/**
+ * Participants of a conversation: the learner, their parent (for managed students) and the
+ * tutor. Nobody else can read or write it.
+ */
 export interface MessagingService {
   listConversations(userId: ID): Promise<ConversationSummary[]>;
   getConversation(userId: ID, conversationId: ID): Promise<ConversationSummary | null>;
   listMessages(userId: ID, conversationId: ID): Promise<Message[]>;
-  /** Returns the existing conversation between a student and tutor, creating it if needed. */
-  openWithTutor(studentUserId: ID, tutorId: ID): Promise<ConversationSummary>;
-  send(senderId: ID, conversationId: ID, body: string): Promise<Message>;
+  /**
+   * Returns the existing conversation between a learner and tutor, creating it if needed.
+   * Parents pass the managed student's id.
+   */
+  openWithTutor(actorUserId: ID, tutorId: ID, studentUserId?: ID): Promise<ConversationSummary>;
+  /**
+   * Until the pair has a confirmed, paid booking, messages containing contact details or
+   * off-platform arrangements are rejected with `contact_blocked` (see `domain/contact-guard.ts`).
+   */
+  send(senderId: ID, input: SendMessageInput): Promise<Message>;
   markRead(userId: ID, conversationId: ID): Promise<void>;
   /** Realtime events for every conversation the user participates in. */
   subscribe(userId: ID, listener: (event: MessagingEvent) => void): Unsubscribe;
@@ -138,6 +168,37 @@ export interface PaymentService {
   payForBooking(actorUserId: ID, bookingId: ID): Promise<PaymentResult>;
 }
 
+/** Lesson offers made by tutors inside a conversation. */
+export interface ProposalService {
+  /** Tutors only. Validates the slot and fixes the price from the tutor's current rate. */
+  create(actorUserId: ID, input: CreateProposalInput): Promise<LessonProposal>;
+  listForConversation(actorUserId: ID, conversationId: ID): Promise<LessonProposal[]>;
+  getById(actorUserId: ID, proposalId: ID): Promise<ProposalDetails | null>;
+  /**
+   * The learner (or their parent) accepts with a payment option. Creates a confirmed booking
+   * awaiting payment; `payments.payForBooking` completes it and unlocks the conversation.
+   */
+  accept(actorUserId: ID, input: AcceptProposalInput): Promise<Booking>;
+  decline(actorUserId: ID, proposalId: ID): Promise<LessonProposal>;
+  /** The tutor takes back a proposal that hasn't been answered. */
+  withdraw(actorUserId: ID, proposalId: ID): Promise<LessonProposal>;
+}
+
+/**
+ * Access to the private video classroom of a booking. The server issues a ticket only to the
+ * booked student, their parent or the tutor, for a confirmed and paid online lesson, inside
+ * the entry window. Knowing the classroom URL grants nothing.
+ */
+export interface ClassroomService {
+  /**
+   * Throws `forbidden` for anyone else and `classroom_closed` outside the window.
+   * `demoIgnoreSchedule` is honoured by the prototype only, so testers can try the classroom
+   * without waiting for a lesson time; the participant and payment checks still apply.
+   */
+  join(actorUserId: ID, bookingId: ID, options?: { demoIgnoreSchedule?: boolean }): Promise<ClassroomTicket>;
+  leave(actorUserId: ID, bookingId: ID): Promise<void>;
+}
+
 export interface TutorDashboardService {
   getStats(actorUserId: ID, tutorId: ID): Promise<TutorStats>;
 }
@@ -152,7 +213,7 @@ export interface PlatformService {
 }
 
 export interface DemoAccount {
-  role: "student" | "tutor" | "admin";
+  role: "student" | "tutor" | "admin" | "parent";
   email: string;
 }
 
@@ -172,6 +233,8 @@ export interface AppServices {
   favorites: FavoritesService;
   bookings: BookingService;
   messaging: MessagingService;
+  proposals: ProposalService;
+  classroom: ClassroomService;
   notifications: NotificationService;
   payments: PaymentService;
   dashboard: TutorDashboardService;

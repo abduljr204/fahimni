@@ -10,6 +10,7 @@ import type {
 } from "../contracts";
 import { parseInput, ServiceError } from "../errors";
 import { clone, latency, mockDb, newId } from "./mock-db";
+import { actsForStudent } from "./access";
 import { pushNotification } from "./mock-notifications";
 
 function normalize(text: string): string {
@@ -146,8 +147,8 @@ export const mockReviewRepository: ReviewRepository = {
     return mockDb.mutate((s) => {
       const booking = s.bookings.find((b) => b.id === input.bookingId);
       if (!booking) throw new ServiceError("not_found");
-      if (booking.studentId !== actorUserId) throw new ServiceError("forbidden");
-      if (booking.status !== "completed" || booking.reviewId) throw new ServiceError("validation");
+      if (!actsForStudent(s, actorUserId, booking.studentId)) throw new ServiceError("forbidden");
+      if (booking.status !== "confirmed" || booking.lessonStatus !== "completed" || booking.reviewId) throw new ServiceError("validation");
       const author = s.users.find((u) => u.id === actorUserId)!;
       const tutor = s.tutors.find((t) => t.id === booking.tutorId)!;
       const review: Review = {

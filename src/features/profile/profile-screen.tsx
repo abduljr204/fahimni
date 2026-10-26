@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Bell, FlaskConical, Heart, Info, Languages, LayoutDashboard, GraduationCap, LogOut, RotateCcw, ShieldCheck } from "lucide-react";
+import { Bell, FlaskConical, Heart, Info, Languages, LayoutDashboard, GraduationCap, LogOut, RotateCcw, ShieldCheck, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { AppLink } from "@/components/layout/app-link";
@@ -122,7 +122,7 @@ export function ProfileScreen() {
                     {session.user.email}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    <Badge tone="brand">{role === "tutor" ? t.profile.tutor : role === "admin" ? t.profile.admin : t.profile.student}</Badge>
+                    <Badge tone="brand">{{ tutor: t.profile.tutor, admin: t.profile.admin, parent: t.profile.parent, student: t.profile.student }[role ?? "student"]}</Badge>
                     {session.isDemo && (
                       <Badge tone="accent">
                         <FlaskConical className="size-3" /> {t.demo.demoAccount}
@@ -131,6 +131,12 @@ export function ProfileScreen() {
                   </div>
                 </div>
               </div>
+              {session.managedStudents?.map((child) => (
+                <p key={child.userId} className="mt-4 flex items-center gap-2 rounded-2xl bg-ink-50 px-4 py-2.5 text-[13px] text-ink-600">
+                  <Users className="size-4 shrink-0 text-brand-600" />
+                  {fmt(t.profile.managing, { name: l(child.displayName) })}
+                </p>
+              ))}
               {session.student && (
                 <p className="mt-4 rounded-2xl bg-ink-50 px-4 py-2.5 text-[13px] text-ink-600">
                   {l(session.student.major)} · {l(session.student.university)} · {fmt(t.profile.year, { n: session.student.studyYear })}
@@ -139,7 +145,7 @@ export function ProfileScreen() {
               {role === "student" && (
                 <div className="mt-4 grid grid-cols-3 text-center">
                   {[
-                    { v: bookings.filter((b) => b.status === "completed").length, label: t.profile.stats.lessons },
+                    { v: bookings.filter((b) => b.lessonStatus === "completed").length, label: t.profile.stats.lessons },
                     { v: favorites.length, label: t.profile.stats.tutors },
                     { v: bookings.filter((b) => b.reviewId).length, label: t.profile.stats.reviews },
                   ].map((s) => (
@@ -183,6 +189,9 @@ export function ProfileScreen() {
               label={role === "tutor" ? t.profile.switchToStudent : t.profile.switchToTutor}
               onClick={() => roles.switchTo(role === "tutor" ? "student" : "tutor")}
             />
+          )}
+          {roles.available && role !== "parent" && (
+            <Row icon={<Users className="size-5" />} label={t.profile.switchToParent} onClick={() => roles.switchTo("parent")} />
           )}
           {roles.available && role !== "admin" && (
             <Row icon={<ShieldCheck className="size-5" />} label={t.profile.switchToAdmin} onClick={() => roles.switchTo("admin")} />

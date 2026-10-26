@@ -200,7 +200,7 @@ export function SignInScreen({ searchParams }: { searchParams: Promise<{ next?: 
     try {
       const session = await signIn(parsed.data);
       toast.success(fmt(t.auth.welcomeBack, { name: l(session.user.displayName).split(" ")[0] }));
-      const home = { student: "/", tutor: "/tutor", admin: "/admin" }[session.user.role];
+      const home = { student: "/", parent: "/", tutor: "/tutor", admin: "/admin" }[session.user.role];
       router.push(href(next === "/" ? home : next));
     } catch (error) {
       if (isServiceError(error, "invalid_credentials")) setErrors({ _form: "invalid" });

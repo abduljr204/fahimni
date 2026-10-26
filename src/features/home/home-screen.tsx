@@ -13,6 +13,7 @@ import { Card, ForwardChevron, SectionHeader } from "@/components/ui/primitives"
 import { SUBJECT_CATEGORIES } from "@/domain/types";
 import { isUpcoming } from "@/domain/booking-rules";
 import { useRoleSwitch } from "@/features/demo/use-role-switch";
+import { JoinLessonButton } from "@/features/classroom/join-lesson-button";
 import { LessonCard } from "@/features/lessons/lesson-card";
 import { categoryColors, categoryIcons, TutorCard, TutorCardSkeleton, TutorTile, TutorTileSkeleton } from "@/features/tutors/shared";
 import { useFeaturedTutors, useNotifications, useStudentBookings, useSubjects, useTutorSearch } from "@/hooks/use-data";
@@ -156,7 +157,7 @@ function UpcomingLesson() {
   const { t } = useI18n();
   const { session, role } = useSession();
   const { data } = useStudentBookings();
-  if (!session || role !== "student") return null;
+  if (!session || (role !== "student" && role !== "parent")) return null;
   const next = data?.filter((b) => b.status === "confirmed" && isUpcoming(b))[0];
   if (!next) return null;
   return (
@@ -169,9 +170,7 @@ function UpcomingLesson() {
           </AppLink>
         }
       />
-      <AppLink href="/lessons" className="block">
-        <LessonCard booking={next} highlight />
-      </AppLink>
+      <LessonCard booking={next} highlight actions={<JoinLessonButton booking={next} highlight />} />
     </section>
   );
 }

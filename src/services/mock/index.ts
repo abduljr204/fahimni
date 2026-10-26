@@ -1,6 +1,7 @@
 import type { AppServices } from "../contracts";
 import { mockAuthService, mockDemoControls } from "./mock-auth";
 import { mockBookingService } from "./mock-bookings";
+import { mockClassroomService } from "./mock-classroom";
 import {
   mockFavoritesService,
   mockReviewRepository,
@@ -12,6 +13,7 @@ import { mockMessagingService } from "./mock-messaging";
 import { mockNotificationService } from "./mock-notifications";
 import { mockPaymentService } from "./mock-payments";
 import { mockPlatformService } from "./mock-platform";
+import { mockProposalService } from "./mock-proposals";
 import { startSimulator } from "./simulator";
 
 /** PROTOTYPE MODE services: seeded demo data, simulated realtime and payments. */
@@ -26,6 +28,8 @@ export function createMockServices(): AppServices {
     favorites: mockFavoritesService,
     bookings: mockBookingService,
     messaging: mockMessagingService,
+    proposals: mockProposalService,
+    classroom: mockClassroomService,
     notifications: mockNotificationService,
     payments: mockPaymentService,
     dashboard: mockDashboardService,

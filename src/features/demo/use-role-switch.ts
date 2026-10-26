@@ -7,7 +7,7 @@ import { useSession } from "@/hooks/use-session";
 import { useI18n } from "@/i18n/i18n-provider";
 import { useToast } from "@/components/ui/toast";
 
-const HOME: Record<UserRole, string> = { student: "/", tutor: "/tutor", admin: "/admin" };
+const HOME: Record<UserRole, string> = { student: "/", parent: "/lessons", tutor: "/tutor", admin: "/admin" };
 
 /** Prototype helper: jumps between the demo student, tutor and admin experiences. */
 export function useRoleSwitch() {
@@ -22,7 +22,12 @@ export function useRoleSwitch() {
     setPending(role);
     try {
       await switchDemoRole(role);
-      const switched = { student: t.profile.switchedToStudent, tutor: t.profile.switchedToTutor, admin: t.profile.switchedToAdmin };
+      const switched = {
+        student: t.profile.switchedToStudent,
+        tutor: t.profile.switchedToTutor,
+        admin: t.profile.switchedToAdmin,
+        parent: t.profile.switchedToParent,
+      };
       toast.demo(switched[role], t.demo.demoAccount);
       router.push(href(HOME[role]));
     } catch {

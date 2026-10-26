@@ -16,6 +16,12 @@ export const qk = {
     all: ["bookings"] as const,
     student: (userId: string) => ["bookings", "student", userId] as const,
     tutor: (tutorId: string) => ["bookings", "tutor", tutorId] as const,
+    detail: (bookingId: string) => ["bookings", "detail", bookingId] as const,
+  },
+  proposals: {
+    all: ["proposals"] as const,
+    conversation: (conversationId: string) => ["proposals", "conversation", conversationId] as const,
+    detail: (proposalId: string) => ["proposals", "detail", proposalId] as const,
   },
   conversations: {
     all: ["conversations"] as const,

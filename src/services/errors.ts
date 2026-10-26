@@ -11,6 +11,12 @@ export type ServiceErrorCode =
   | "validation"
   | "slot_unavailable"
   | "price_changed"
+  /** A pre-booking message contained contact details; `details` holds the findings. */
+  | "contact_blocked"
+  /** The classroom isn't open; `details` holds the reason and opening time. */
+  | "classroom_closed"
+  /** The proposal is no longer pending (accepted, declined, withdrawn or expired). */
+  | "proposal_unavailable"
   | "not_configured"
   | "demo_data_in_production";
 
@@ -19,6 +25,8 @@ export class ServiceError extends Error {
     public readonly code: ServiceErrorCode,
     message?: string,
     public readonly fields?: Record<string, string>,
+    /** Structured data the UI needs to explain the error. */
+    public readonly details?: unknown,
   ) {
     super(message ?? code);
     this.name = "ServiceError";

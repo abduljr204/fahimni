@@ -16,6 +16,7 @@ import { toMajor, toMinor } from "@/domain/money";
 import { bpsToPercent, hourlyEarnings } from "@/domain/pricing";
 import { SignInPrompt } from "@/features/auth/auth-gate";
 import { useRoleSwitch } from "@/features/demo/use-role-switch";
+import { JoinLessonButton } from "@/features/classroom/join-lesson-button";
 import { LessonCard } from "@/features/lessons/lesson-card";
 import { useNotifications, usePlatformSettings, useRespondToBooking, useTutor, useTutorBookings, useTutorStats } from "@/hooks/use-data";
 import { useSession } from "@/hooks/use-session";
@@ -173,7 +174,16 @@ function Upcoming() {
         {upcoming.length === 0 ? (
           <Card className="p-5 text-center text-sm text-ink-500">{t.dashboard.noUpcoming}</Card>
         ) : (
-          upcoming.map((b, i) => <LessonCard key={b.id} booking={b} perspective="tutor" index={i} highlight={i === 0} />)
+          upcoming.map((b, i) => (
+            <LessonCard
+              key={b.id}
+              booking={b}
+              perspective="tutor"
+              index={i}
+              highlight={i === 0}
+              actions={b.mode === "online" ? <JoinLessonButton booking={b} highlight={i === 0} /> : undefined}
+            />
+          ))
         )}
       </div>
     </section>

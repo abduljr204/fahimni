@@ -4,7 +4,7 @@ import type { AuthService, DemoControls } from "../contracts";
 import { parseInput, ServiceError } from "../errors";
 import { clone, latency, mockDb, newId } from "./mock-db";
 import { pushNotification } from "./mock-notifications";
-import { DEMO_ADMIN_EMAIL, DEMO_STUDENT_EMAIL, DEMO_TUTOR_EMAIL, type MockState, type MockUser } from "./seed";
+import { DEMO_ADMIN_EMAIL, DEMO_PARENT_EMAIL, DEMO_STUDENT_EMAIL, DEMO_TUTOR_EMAIL, type MockState, type MockUser } from "./seed";
 
 /**
  * Prototype authentication: accounts live in the in-browser database and the
@@ -21,6 +21,15 @@ function buildSession(state: MockState, userId: string | null): Session | null {
     user: toAccount(user),
     student: state.students.find((s) => s.userId === userId),
     tutorId: state.tutors.find((t) => t.userId === userId)?.id,
+    managedStudents:
+      user.role === "parent"
+        ? state.students
+            .filter((s) => s.guardianUserId === userId)
+            .map((s) => {
+              const child = state.users.find((u) => u.id === s.userId)!;
+              return { userId: child.id, displayName: child.displayName, avatarHue: child.avatarHue, level: s.level };
+            })
+        : undefined,
     isDemo: true,
   });
 }
@@ -116,6 +125,7 @@ export const mockDemoControls: DemoControls = {
     { role: "student", email: DEMO_STUDENT_EMAIL },
     { role: "tutor", email: DEMO_TUTOR_EMAIL },
     { role: "admin", email: DEMO_ADMIN_EMAIL },
+    { role: "parent", email: DEMO_PARENT_EMAIL },
   ],
 
   async signInAs(role) {
@@ -131,7 +141,7 @@ export const mockDemoControls: DemoControls = {
         userId = mockDb.data.users.find((u) => u.email === DEMO_STUDENT_EMAIL)?.id;
       }
     } else {
-      const email = role === "tutor" ? DEMO_TUTOR_EMAIL : DEMO_ADMIN_EMAIL;
+      const email = { tutor: DEMO_TUTOR_EMAIL, admin: DEMO_ADMIN_EMAIL, parent: DEMO_PARENT_EMAIL }[role];
       userId = mockDb.data.users.find((u) => u.email === email)?.id;
     }
     if (!userId) throw new ServiceError("not_found");

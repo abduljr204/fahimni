@@ -55,6 +55,8 @@ Rules that keep the seams clean:
    - `bookings.getAvailableSlots` → availability windows + bookings, then
      `domain/booking-rules.generateDaySlots` (or a SQL function).
    - `messaging.subscribe`, `notifications.subscribe` → Supabase Realtime channels.
+   - `proposals`, `classroom`, messaging moderation and video tokens → see
+     [PRE_BOOKING_AND_CLASSROOM.md](PRE_BOOKING_AND_CLASSROOM.md) (migration 0003).
    - `payments` → a Route Handler that talks to the payment provider with the secret key;
      only mark bookings paid from the provider's webhook.
 4. Flip `productionServicesReady` to true and set the env vars (see `.env.example`).

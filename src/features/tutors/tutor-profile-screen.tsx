@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { Clock, GraduationCap, Languages, MapPin, MessageCircle, Share2, UserX, Video, Zap } from "lucide-react";
+import { Award, Clock, FlaskConical, GraduationCap, Languages, Lock, MapPin, MessageCircle, Play, Share2, UserX, Video, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { use, useState } from "react";
 import { AppLink } from "@/components/layout/app-link";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { AnimatedNumber } from "@/components/ui/data-viz";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HeartButton } from "@/components/ui/heart-button";
+import { BottomSheet } from "@/components/ui/overlays";
 import { Badge, Card, Chip, SectionHeader, Skeleton, Stars } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
 import { brand } from "@/config/app-config";
@@ -144,6 +145,112 @@ function About({ tutor }: { tutor: TutorProfile }) {
   );
 }
 
+/** Qualifications, levels taught and experience, so students can judge fit before paying. */
+function Credentials({ tutor }: { tutor: TutorProfile }) {
+  const { t, l, fmt, number } = useI18n();
+  return (
+    <section className="px-5 pt-6">
+      <SectionHeader title={t.tutor.qualifications} />
+      <Card className="p-4">
+        <ul className="space-y-2.5">
+          {tutor.qualifications.map((q, i) => (
+            <li key={i} className="flex gap-2.5 text-[14px] text-ink-700">
+              <Award className="mt-0.5 size-4 shrink-0 text-brand-600" />
+              {l(q)}
+            </li>
+          ))}
+          <li className="flex gap-2.5 text-[14px] text-ink-700">
+            <GraduationCap className="mt-0.5 size-4 shrink-0 text-brand-600" />
+            {fmt(t.tutor.experienceYears, { n: number(tutor.yearsExperience) })}
+          </li>
+        </ul>
+        <div className="mt-4 border-t border-ink-100 pt-4">
+          <p className="mb-2 text-[12px] text-ink-500">{t.tutor.gradeLevels}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {tutor.gradeLevels.map((g) => (
+              <Badge key={g} tone="brand">
+                {t.tutor.gradeLevelNames[g]}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </Card>
+    </section>
+  );
+}
+
+/** Intro video. The prototype has no recordings, so it plays a clearly labelled placeholder with the transcript. */
+function IntroVideo({ tutor }: { tutor: TutorProfile }) {
+  const { t, l } = useI18n();
+  const [open, setOpen] = useState(false);
+  if (!tutor.introVideo) return null;
+  const { durationSeconds, transcript } = tutor.introVideo;
+  const length = `${Math.floor(durationSeconds / 60)}:${String(durationSeconds % 60).padStart(2, "0")}`;
+  return (
+    <section className="px-5 pt-6">
+      <SectionHeader title={t.tutor.introVideo} />
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.98 }}
+        onClick={() => setOpen(true)}
+        className="relative block aspect-video w-full overflow-hidden rounded-3xl text-white shadow-card"
+        style={{ background: `linear-gradient(135deg, hsl(${tutor.avatarHue} 60% 45%), hsl(${(tutor.avatarHue + 50) % 360} 65% 25%))` }}
+        aria-label={t.tutor.watchIntro}
+      >
+        <span className="absolute inset-0 grid place-items-center">
+          <span className="grid size-16 place-items-center rounded-full bg-white/90 text-brand-700 shadow-float">
+            <Play className="ms-1 size-7 fill-current rtl:-scale-x-100" />
+          </span>
+        </span>
+        <span className="absolute start-3 bottom-3 rounded-full bg-ink-950/60 px-2.5 py-1 text-[12px] font-semibold">{t.tutor.watchIntro} · {length}</span>
+        {tutor.isDemo && (
+          <span className="absolute end-3 top-3 flex items-center gap-1 rounded-full bg-accent-400 px-2 py-0.5 text-[11px] font-bold text-ink-950">
+            <FlaskConical className="size-3" /> {t.common.demo}
+          </span>
+        )}
+      </motion.button>
+      <BottomSheet open={open} onClose={() => setOpen(false)} title={t.tutor.introVideo}>
+        <div className="space-y-4">
+          <div
+            className="relative grid aspect-video place-items-center overflow-hidden rounded-3xl"
+            style={{ background: `linear-gradient(135deg, hsl(${tutor.avatarHue} 60% 45%), hsl(${(tutor.avatarHue + 50) % 360} 65% 25%))` }}
+          >
+            <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 1.2, repeat: Infinity }}>
+              <Avatar name={l(tutor.displayName)} hue={tutor.avatarHue} size="xl" />
+            </motion.div>
+            <motion.span className="absolute inset-x-0 bottom-0 h-1 origin-left bg-white/80 rtl:origin-right" initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: durationSeconds, ease: "linear" }} />
+          </div>
+          <p className="rounded-2xl bg-ink-50 p-3 text-[15px] leading-relaxed text-ink-700">“{l(transcript)}”</p>
+          <p className="flex items-center gap-1.5 text-[12px] font-medium text-accent-600">
+            <FlaskConical className="size-3.5" /> {t.tutor.introDemo}
+          </p>
+        </div>
+      </BottomSheet>
+    </section>
+  );
+}
+
+/** Invites questions before booking and explains that contact details come after payment. */
+function AskFirst({ tutor }: { tutor: TutorProfile }) {
+  const { t } = useI18n();
+  const { ask: onAsk, loading } = useAskTutor(tutor);
+  return (
+    <section className="px-5 pt-6">
+      <Card className="flex items-start gap-3 p-4">
+        <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-600">
+          <Lock className="size-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] text-ink-600">{t.tutor.askHint}</p>
+          <Button size="sm" variant="secondary" className="mt-3" loading={loading} onClick={onAsk}>
+            <MessageCircle className="size-4" /> {t.tutor.askQuestion}
+          </Button>
+        </div>
+      </Card>
+    </section>
+  );
+}
+
 function Subjects({ tutor, selected, onSelect }: { tutor: TutorProfile; selected?: string; onSelect: (id: string) => void }) {
   const { t, l } = useI18n();
   const subjects = useSubjectMap();
@@ -259,15 +366,14 @@ function Reviews({ tutor }: { tutor: TutorProfile }) {
   );
 }
 
-function BookingBar({ tutor, subjectId }: { tutor: TutorProfile; subjectId?: string }) {
-  const { t, money, href } = useI18n();
-  const { session, role } = useSession();
+/** Opens (or creates) the pre-booking conversation with this tutor. */
+function useAskTutor(tutor: TutorProfile) {
+  const { t, href } = useI18n();
+  const { session } = useSession();
   const router = useRouter();
   const toast = useToast();
   const open = useOpenConversation();
-  const isOwnProfile = session?.tutorId === tutor.id;
-
-  const message = () => {
+  const ask = () => {
     if (!session) {
       toast.info(t.messages.signInToChat);
       router.push(href(`/auth/sign-up?next=${encodeURIComponent(`/tutors/${tutor.id}`)}`));
@@ -278,6 +384,14 @@ function BookingBar({ tutor, subjectId }: { tutor: TutorProfile; subjectId?: str
       onError: () => toast.error(t.common.somethingWrong),
     });
   };
+  return { ask, loading: open.isPending };
+}
+
+function BookingBar({ tutor, subjectId }: { tutor: TutorProfile; subjectId?: string }) {
+  const { t, money } = useI18n();
+  const { session, role } = useSession();
+  const { ask: message, loading } = useAskTutor(tutor);
+  const isOwnProfile = session?.tutorId === tutor.id;
 
   return (
     <motion.div
@@ -296,7 +410,7 @@ function BookingBar({ tutor, subjectId }: { tutor: TutorProfile; subjectId?: str
         </div>
         <div className="ms-auto flex gap-2">
           {!isOwnProfile && (
-            <Button variant="secondary" size="icon" onClick={message} loading={open.isPending} aria-label={t.tutor.message}>
+            <Button variant="secondary" size="icon" onClick={message} loading={loading} aria-label={t.tutor.message}>
               <MessageCircle className="size-5" />
             </Button>
           )}
@@ -316,6 +430,7 @@ export function TutorProfileScreen({ params }: { params: Promise<{ id: string }>
   const { t } = useI18n();
   const toast = useToast();
   const { data: tutor, isLoading } = useTutor(id);
+  const { session, role } = useSession();
   const fav = useFavoriteToggle();
   const [subjectId, setSubjectId] = useState<string>();
 
@@ -369,8 +484,11 @@ export function TutorProfileScreen({ params }: { params: Promise<{ id: string }>
           <motion.div key="profile" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Hero tutor={tutor} />
             <StatsRow tutor={tutor} />
+            <IntroVideo tutor={tutor} />
             <Subjects tutor={tutor} selected={subjectId} onSelect={(sid) => setSubjectId((cur) => (cur === sid ? undefined : sid))} />
             <About tutor={tutor} />
+            <Credentials tutor={tutor} />
+            {session?.tutorId !== tutor.id && role !== "tutor" && <AskFirst tutor={tutor} />}
             <AvailabilityPreview tutor={tutor} subjectId={subjectId} />
             <Reviews tutor={tutor} />
             <p className="flex items-center justify-center gap-1.5 px-5 pt-6 text-center text-[12px] text-ink-500">

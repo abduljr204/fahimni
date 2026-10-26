@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
-import { BookOpen, CalendarDays, Clock, MapPin, ShieldCheck, Video } from "lucide-react";
+import { BookOpen, CalendarDays, Clock, MapPin, Video } from "lucide-react";
 import { use, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Screen, TopBar } from "@/components/layout/screen";
 import { Avatar } from "@/components/ui/avatar";
@@ -12,13 +12,16 @@ import { BackChevron, Card, ForwardChevron, Skeleton } from "@/components/ui/pri
 import { useToast } from "@/components/ui/toast";
 import { brand } from "@/config/app-config";
 import { localDateKey } from "@/domain/booking-rules";
-import { priceLesson } from "@/domain/pricing";
-import type { Booking, DaySlots, LessonMode } from "@/domain/types";
+import { allowedSettlements, defaultSettlement, priceLesson } from "@/domain/pricing";
+import type { Booking, DaySlots, LessonMode, Settlement } from "@/domain/types";
 import { createBookingSchema } from "@/domain/validation";
 import { AuthGate } from "@/features/auth/auth-gate";
+import { CancellationTerms } from "@/features/pricing/cancellation-terms";
+import { PaymentOptionPicker } from "@/features/pricing/payment-options";
 import { PaymentSplit, PriceBreakdown } from "@/features/pricing/price-breakdown";
 import { useSubjectMap } from "@/features/tutors/shared";
 import { useAvailableSlots, useCreateBooking, usePlatformSettings, useTutor } from "@/hooks/use-data";
+import { useSession } from "@/hooks/use-session";
 import { useI18n } from "@/i18n/i18n-provider";
 import { qk } from "@/lib/query-keys";
 import { getServices, isServiceError } from "@/services";
@@ -32,6 +35,7 @@ interface Draft {
   date?: string;
   startsAt?: string;
   note: string;
+  settlement?: Settlement;
 }
 
 function SummaryRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
@@ -49,6 +53,8 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
   const toast = useToast();
   const { data: tutor, isLoading } = useTutor(tutorId);
   const { data: settings } = usePlatformSettings();
+  const { session } = useSession();
+  const child = session?.user.role === "parent" ? session.managedStudents?.[0] : undefined;
   const subjectMap = useSubjectMap();
   const create = useCreateBooking();
   const queryClient = useQueryClient();
@@ -99,10 +105,12 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
   const subjects = useMemo(() => (tutor?.subjectIds ?? []).map((id) => subjectMap.get(id)).filter((s) => s !== undefined), [tutor, subjectMap]);
   const subject = resolved.subjectId ? subjectMap.get(resolved.subjectId) : undefined;
   // Preview only: the service prices the lesson again and rejects it if this quote is out of date.
-  const pricing =
-    tutor && settings
-      ? priceLesson({ hourlyRate: tutor.hourlyRate, durationMinutes: resolved.duration, mode: resolved.mode, commissionBps: settings.commissionBps })
-      : undefined;
+  const settlementOptions = settings ? allowedSettlements(resolved.mode, settings) : [];
+  const settlement =
+    settings && (resolved.settlement && settlementOptions.includes(resolved.settlement) ? resolved.settlement : defaultSettlement(resolved.mode, settings));
+  const pricingFor = (s: Settlement) =>
+    priceLesson({ hourlyRate: tutor!.hourlyRate, durationMinutes: resolved.duration, mode: resolved.mode, commissionBps: settings!.commissionBps, settlement: s });
+  const pricing = tutor && settings && settlement ? pricingFor(settlement) : undefined;
   const price = pricing?.total;
 
   const canContinue = step === 0 ? Boolean(resolved.subjectId) : step === 1 ? Boolean(resolved.startsAt) : true;
@@ -122,6 +130,7 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
       durationMinutes: resolved.duration,
       mode: resolved.mode,
       note: resolved.note || undefined,
+      settlement: pricing.settlement,
       expectedTotalMinor: pricing.total.amountMinor,
       expectedDueInAppMinor: pricing.dueInApp.amountMinor,
     };
@@ -175,7 +184,10 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
         <Avatar name={l(tutor.displayName)} hue={tutor.avatarHue} size="md" />
         <div className="min-w-0">
           <p className="truncate font-bold">{fmt(t.booking.lessonWith, { name: l(tutor.displayName) })}</p>
-          <p className="text-[13px] text-ink-500">{fmt(t.booking.stepOf, { current: step + 1, total: 3 })}</p>
+          <p className="text-[13px] text-ink-500">
+            {fmt(t.booking.stepOf, { current: step + 1, total: 3 })}
+            {child && ` · ${fmt(t.checkout.forStudent, { name: l(child.displayName).split(" ")[0] })}`}
+          </p>
         </div>
       </div>
       <StepProgress step={step} labels={t.booking.steps} />
@@ -243,9 +255,26 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
                   <PriceBreakdown pricing={pricing} durationMinutes={resolved.duration} />
                 </Card>
 
+                {settlementOptions.length > 1 && (
+                  <Card className="p-4">
+                    <h2 className="mb-3 text-lg font-bold">{t.checkout.paymentOption}</h2>
+                    <PaymentOptionPicker
+                      options={settlementOptions}
+                      value={pricing.settlement}
+                      onChange={(s) => setDraft((d) => ({ ...d, settlement: s }))}
+                      pricingFor={pricingFor}
+                    />
+                  </Card>
+                )}
+
                 <Card className="p-4">
                   <h2 className="mb-3 text-lg font-bold">{t.booking.howYouPay}</h2>
                   <PaymentSplit pricing={pricing} simulated={getServices().payments.kind === "simulated"} />
+                </Card>
+
+                <Card className="p-4">
+                  <h2 className="mb-3 text-lg font-bold">{t.checkout.terms}</h2>
+                  <CancellationTerms pricing={pricing} startsAt={resolved.startsAt} />
                 </Card>
 
                 <Textarea
@@ -255,9 +284,6 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
                   maxLength={500}
                   onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
                 />
-                <p className="flex items-center justify-center gap-1.5 text-[13px] text-ink-500">
-                  <ShieldCheck className="size-4 text-mint-500" /> {t.booking.freeCancellation}
-                </p>
               </div>
             )}
           </motion.div>

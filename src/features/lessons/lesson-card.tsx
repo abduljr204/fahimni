@@ -1,21 +1,48 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Banknote, CalendarDays, Clock, MapPin, Video, Wallet } from "lucide-react";
+import { Banknote, CalendarDays, Clock, Lock, MapPin, Video, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, Card } from "@/components/ui/primitives";
+import { isPaid } from "@/domain/access";
 import type { BookingDetails, BookingStatus } from "@/domain/types";
 import { useI18n } from "@/i18n/i18n-provider";
 import { cn } from "@/lib/cn";
 
-export const statusTone: Record<BookingStatus, "brand" | "mint" | "accent" | "coral" | "ink"> = {
+type Tone = "brand" | "mint" | "accent" | "coral" | "ink";
+
+export const statusTone: Record<BookingStatus, Tone> = {
   pending: "accent",
   confirmed: "mint",
   declined: "coral",
   cancelled: "ink",
-  completed: "brand",
 };
+
+/** Booking, payment and lesson state are separate; the badge shows the one that matters most. */
+function useStatusBadge(booking: BookingDetails): { label: string; tone: Tone } {
+  const { t } = useI18n();
+  if (booking.status === "confirmed" && booking.lessonStatus === "completed") return { label: t.lessons.completedLabel, tone: "brand" };
+  if (booking.status === "confirmed" && !isPaid(booking.paymentStatus)) return { label: t.lessons.awaitingPayment, tone: "accent" };
+  return { label: t.lessons.status[booking.status], tone: statusTone[booking.status] };
+}
+
+/** Exact place once paid; before that only the general area, with a note that details follow. */
+function MeetingPlace({ booking, highlight }: { booking: BookingDetails; highlight?: boolean }) {
+  const { t, l } = useI18n();
+  if (booking.mode !== "in_person") return null;
+  const muted = highlight ? "text-white/80" : "text-ink-500";
+  return (
+    <p className={cn("mt-2 flex items-center gap-1.5 text-[12px] font-medium", muted)}>
+      {booking.meetingDetailsVisible ? <MapPin className="size-3.5 shrink-0" aria-hidden /> : <Lock className="size-3.5 shrink-0" aria-hidden />}
+      <span className="truncate">
+        {booking.meetingDetailsVisible && booking.location
+          ? `${t.lessons.meetingPlace}: ${l(booking.location)}`
+          : `${booking.area ? `${t.lessons.area}: ${booking.area} · ` : ""}${t.lessons.meetingPlace}: ${t.lessons.meetingHidden}`}
+      </span>
+    </p>
+  );
+}
 
 /** Who pays what, from each party's point of view. */
 function PaymentLine({
@@ -37,11 +64,11 @@ function PaymentLine({
 
   let text: string | undefined;
   if (refunded) text = t.lessons.refunded;
-  else if (perspective === "tutor" && (active || booking.status === "completed")) {
+  else if (perspective === "tutor" && (active || booking.lessonStatus === "completed")) {
     text = collecting
       ? fmt(t.lessons.collectCash, { amount: money(pricing.dueInCash) })
       : fmt(t.lessons.youReceive, { amount: money(pricing.tutorEarnings) });
-  } else if (perspective === "student" && active) {
+  } else if (perspective === "student" && active && isPaid(booking.paymentStatus)) {
     text = fmt(t.lessons.paidInApp, { amount: money(pricing.dueInApp) });
     if (cash) text += ` · ${fmt(t.lessons.payCash, { amount: money(pricing.dueInCash) })}`;
   }
@@ -71,6 +98,7 @@ export function LessonCard({
   index?: number;
 }) {
   const { t, l, dayLabel, time, money, fmt, relative } = useI18n();
+  const badge = useStatusBadge(booking);
   const person = perspective === "student" ? booking.tutor : booking.student;
   const upcoming = new Date(booking.startsAt) > new Date() && (booking.status === "confirmed" || booking.status === "pending");
 
@@ -106,7 +134,7 @@ export function LessonCard({
                     {fmt(t.lessons.startsIn, { time: relative(booking.startsAt) })}
                   </Badge>
                 ) : (
-                  <Badge tone={statusTone[booking.status]}>{t.lessons.status[booking.status]}</Badge>
+                  <Badge tone={badge.tone}>{badge.label}</Badge>
                 )}
               </div>
             </div>
@@ -137,6 +165,10 @@ export function LessonCard({
             </span>
           </div>
           <PaymentLine booking={booking} perspective={perspective} highlight={highlight} active={upcoming} />
+          {upcoming && <MeetingPlace booking={booking} highlight={highlight} />}
+          {booking.objectives && upcoming && (
+            <p className={cn("mt-2 line-clamp-2 text-[12px]", highlight ? "text-white/80" : "text-ink-500")}>🎯 {booking.objectives}</p>
+          )}
           {booking.note && perspective === "tutor" && upcoming && (
             <p className="mt-3 rounded-2xl border border-dashed border-ink-200 p-2.5 text-[13px] text-ink-600">
               <span className="font-semibold text-ink-800">{t.dashboard.studentNote}: </span>

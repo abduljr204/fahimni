@@ -6,6 +6,8 @@ import type {
   AvailabilityWindow,
   Booking,
   Conversation,
+  GradeLevel,
+  LessonProposal,
   LocalizedText,
   Message,
   Payment,
@@ -27,6 +29,10 @@ export const DEMO_PASSWORD = "demo1234";
 export const DEMO_STUDENT_EMAIL = "sara@demo.fahimni";
 export const DEMO_TUTOR_EMAIL = "youssef@demo.fahimni";
 export const DEMO_ADMIN_EMAIL = "admin@demo.fahimni";
+export const DEMO_PARENT_EMAIL = "fatima@demo.fahimni";
+
+/** Exact meeting place for demo in-person lessons; only shown once a booking is confirmed and paid. */
+export const DEMO_MEETING_PLACE: LocalizedText = { ar: "مكتبة الكلية — القاعة 3، الطابق الأول", en: "Faculty library — Room 3, first floor" };
 
 export interface MockUser extends UserAccount {
   /** Prototype only: plain-text demo password kept in the browser. Never do this in production. */
@@ -44,6 +50,7 @@ export interface MockState {
   reviews: Review[];
   favorites: { userId: string; tutorId: string }[];
   bookings: Booking[];
+  proposals: LessonProposal[];
   payments: Payment[];
   settings: PlatformSettings;
   conversations: Conversation[];
@@ -52,7 +59,7 @@ export interface MockState {
   profileViews: Record<string, number>;
 }
 
-export const MOCK_STATE_VERSION = 5;
+export const MOCK_STATE_VERSION = 6;
 
 const money = (major: number) => toMoney(major, brand.currency);
 
@@ -425,6 +432,44 @@ const tutorSeeds: TutorSeed[] = [
   },
 ];
 
+/** Shown on tutor profiles before booking. Tutors without an entry get a profile built from their headline. */
+const PROFILE_EXTRAS: Record<string, { qualifications: LocalizedText[]; gradeLevels: GradeLevel[]; video?: LocalizedText }> = {
+  youssef: {
+    qualifications: [
+      { ar: "ماجستير في الرياضيات التطبيقية — جامعة تجريبية", en: "MSc in Applied Mathematics — Demo University" },
+      { ar: "طالب دكتوراه في التحليل العددي", en: "PhD candidate in numerical analysis" },
+      { ar: "مساعد تدريس لمادة التحليل 1 و2 منذ 2021", en: "Teaching assistant for Calculus I and II since 2021" },
+    ],
+    gradeLevels: ["secondary", "university_early", "university_advanced"],
+    video: {
+      ar: "أهلًا، أنا يوسف. أدرّس التحليل والجبر منذ خمس سنوات. في الحصة الأولى نحدد معًا نقاط الضعف، ثم نحل تمارين الامتحانات خطوة بخطوة.",
+      en: "Hi, I'm Youssef. I've taught calculus and algebra for five years. In our first lesson we find your weak spots together, then work through exam problems step by step.",
+    },
+  },
+  salma: {
+    qualifications: [
+      { ar: "دكتوراه في الطب — جامعة تجريبية", en: "Doctor of Medicine — Demo University" },
+      { ar: "طبيبة مقيمة، قسم الجراحة العامة", en: "Resident doctor, general surgery" },
+    ],
+    gradeLevels: ["university_early", "university_advanced"],
+    video: {
+      ar: "مرحبًا، أنا سلمى. أستخدم الرسومات والخرائط الذهنية لتبسيط التشريح، مع أسئلة على نمط الامتحانات.",
+      en: "Hello, I'm Salma. I use diagrams and mind maps to make anatomy simpler, with questions in the exam format.",
+    },
+  },
+  amine: {
+    qualifications: [
+      { ar: "بكالوريوس هندسة البرمجيات", en: "BSc in Software Engineering" },
+      { ar: "مهندس برمجيات منذ 6 سنوات", en: "Software engineer for 6 years" },
+    ],
+    gradeLevels: ["secondary", "university_early", "university_advanced"],
+    video: {
+      ar: "أنا أمين، مهندس برمجيات. دروسي عملية: نكتب الكود معًا ونفهم لماذا يعمل.",
+      en: "I'm Amin, a software engineer. My lessons are hands-on: we write code together and understand why it works.",
+    },
+  },
+};
+
 const extraStudents = [
   { key: "yassine", name: { ar: "ياسين الفرجاني", en: "Yassin Al-Farjani" }, hue: 210 },
   { key: "hajar", name: { ar: "هاجر البرعصي", en: "Hajar Al-Baraasi" }, hue: 340 },
@@ -484,6 +529,29 @@ export function createSeed(now = new Date()): MockState {
       createdAt: created,
       isDemo: true,
     },
+    {
+      id: "u-fatima",
+      email: DEMO_PARENT_EMAIL,
+      password: DEMO_PASSWORD,
+      role: "parent",
+      displayName: { ar: "فاطمة المبروك", en: "Fatima Al-Mabrouk" },
+      avatarHue: 15,
+      preferredLocale: "ar",
+      createdAt: created,
+      isDemo: true,
+    },
+    {
+      // A younger student without a login: their parent books and messages for them.
+      id: "u-ali",
+      email: "ali.child@demo.fahimni",
+      password: "",
+      role: "student",
+      displayName: { ar: "علي المبروك", en: "Ali Al-Mabrouk" },
+      avatarHue: 45,
+      preferredLocale: "ar",
+      createdAt: created,
+      isDemo: true,
+    },
     ...tutorSeeds.map<MockUser>((t) => ({
       id: `u-${t.key}`,
       email: `${t.key}@demo.fahimni`,
@@ -504,6 +572,17 @@ export function createSeed(now = new Date()): MockState {
       university: { ar: "كلية العلوم — جامعة تجريبية", en: "Faculty of Sciences — Demo University" },
       major: { ar: "علوم الحاسوب", en: "Computer Science" },
       studyYear: 2,
+      createdAt: created,
+      isDemo: true,
+    },
+    {
+      id: "sp-ali",
+      userId: "u-ali",
+      university: { ar: "ثانوية تجريبية", en: "Demo Secondary School" },
+      major: { ar: "القسم العلمي — السنة الثالثة", en: "Science stream — final year" },
+      studyYear: 3,
+      level: "secondary",
+      guardianUserId: "u-fatima",
       createdAt: created,
       isDemo: true,
     },
@@ -530,6 +609,9 @@ export function createSeed(now = new Date()): MockState {
     subjectIds: t.subjectIds,
     languages: t.languages,
     modes: t.modes,
+    qualifications: PROFILE_EXTRAS[t.key]?.qualifications ?? [t.headline, t.university],
+    gradeLevels: PROFILE_EXTRAS[t.key]?.gradeLevels ?? ["university_early", "university_advanced"],
+    introVideo: PROFILE_EXTRAS[t.key]?.video ? { durationSeconds: 48, transcript: PROFILE_EXTRAS[t.key].video! } : undefined,
     hourlyRate: money(t.rate),
     yearsExperience: t.years,
     rating: t.rating,
@@ -575,6 +657,9 @@ export function createSeed(now = new Date()): MockState {
     commissionBps: 1000,
     minHourlyRate: money(20),
     maxHourlyRate: money(150),
+    inPersonPaymentOptions: ["in_app", "deposit_and_cash"],
+    classroomOpensMinutesBefore: 15,
+    classroomClosesMinutesAfter: 30,
     updatedAt: created,
   };
 
@@ -585,9 +670,11 @@ export function createSeed(now = new Date()): MockState {
     tutorId: string,
     subjectId: string,
     startsAt: Date,
-    status: Booking["status"],
+    // "completed" here is shorthand for a confirmed booking whose lesson took place.
+    state: Booking["status"] | "completed",
     extra: Partial<Booking> = {},
   ): Booking => {
+    const status: Booking["status"] = state === "completed" ? "confirmed" : state;
     const tutor = tutorById(tutorId);
     const durationMinutes = extra.durationMinutes ?? 60;
     const mode = extra.mode ?? tutor.modes[0];
@@ -602,8 +689,9 @@ export function createSeed(now = new Date()): MockState {
       status,
       pricing: priceLesson({ hourlyRate: tutor.hourlyRate, durationMinutes, mode, commissionBps: settings.commissionBps }),
       paymentStatus: status === "declined" || status === "cancelled" ? "refunded" : "simulated",
-      meetingUrl: mode === "online" ? `https://meet.fahimni.example/demo-${id}` : undefined,
-      location: mode === "in_person" ? { ar: "مكتبة الكلية — القاعة 3", en: "Faculty library — Room 3" } : undefined,
+      lessonStatus: state === "completed" ? "completed" : "scheduled",
+      bookedBy: studentId,
+      location: mode === "in_person" ? DEMO_MEETING_PLACE : undefined,
       createdAt: iso(ago(60 * 24 * 3)),
       updatedAt: iso(ago(60 * 24 * 2)),
       isDemo: true,
@@ -673,6 +761,8 @@ export function createSeed(now = new Date()): MockState {
     { id: "c-3", studentId: "u-sara", tutorUserId: "u-youssef", tutorId: "t-youssef", lastMessageAt: iso(ago(38)), lastMessagePreview: "", createdAt: iso(ago(60)), isDemo: true },
     { id: "c-4", studentId: "u-yassine", tutorUserId: "u-youssef", tutorId: "t-youssef", lastMessageAt: iso(ago(90)), lastMessagePreview: "", createdAt: iso(ago(60 * 24 * 10)), isDemo: true },
     { id: "c-5", studentId: "u-hajar", tutorUserId: "u-youssef", tutorId: "t-youssef", lastMessageAt: iso(ago(115)), lastMessagePreview: "", createdAt: iso(ago(60 * 24 * 2)), isDemo: true },
+    // Parent-managed: Fatima writes on behalf of her son Ali.
+    { id: "c-6", studentId: "u-ali", tutorUserId: "u-youssef", tutorId: "t-youssef", lastMessageAt: iso(ago(200)), lastMessagePreview: "", createdAt: iso(ago(60 * 24)), isDemo: true },
   ];
 
   let messageSeq = 0;
@@ -698,6 +788,8 @@ export function createSeed(now = new Date()): MockState {
     msg("c-4", "u-youssef", "العفو يا ياسين، ما تنساش التمارين 4 و5", 100),
     msg("c-4", "u-yassine", "نقدر نزيد حصة يوم السبت؟", 90, false),
     msg("c-5", "u-hajar", "Hi! I sent a booking request for statistics, hope that works for you.", 115, false),
+    msg("c-6", "u-fatima", "السلام عليكم أستاذ يوسف، أنا والدة علي. يحتاج مساعدة في الدوال والنهايات استعدادًا لامتحان الشهادة الثانوية.", 240),
+    msg("c-6", "u-youssef", "وعليكم السلام، بكل سرور. هل يمكن أن ترسلي لي نموذجًا من التمارين التي يجد فيها صعوبة؟", 200),
   ];
 
   for (const c of conversations) {
@@ -732,6 +824,7 @@ export function createSeed(now = new Date()): MockState {
       { userId: "u-sara", tutorId: "t-salma" },
     ],
     bookings,
+    proposals: [],
     payments,
     settings,
     conversations,

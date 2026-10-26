@@ -3,7 +3,14 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import type { AvailabilityWindow, Message, Money } from "@/domain/types";
-import type { CreateBookingInput, PlatformSettingsInput, ReviewInput } from "@/domain/validation";
+import type {
+  AcceptProposalInput,
+  AttachmentInput,
+  CreateBookingInput,
+  CreateProposalInput,
+  PlatformSettingsInput,
+  ReviewInput,
+} from "@/domain/validation";
 import { qk } from "@/lib/query-keys";
 import { getServices, type TutorSearchFilters } from "@/services";
 import { useSession } from "./use-session";
@@ -17,6 +24,17 @@ const services = () => getServices();
 
 function useUserId(): string | undefined {
   return useSession().session?.user.id;
+}
+
+/**
+ * The learner the signed-in user acts for: themselves for students, the managed child for
+ * parents (the prototype's demo parent manages one child).
+ */
+export function useActingStudentId(): string | undefined {
+  const { session } = useSession();
+  if (!session) return undefined;
+  if (session.user.role === "parent") return session.managedStudents?.[0]?.userId;
+  return session.user.role === "student" ? session.user.id : undefined;
 }
 
 // ─── Catalogue ──────────────────────────────────────────────────────────────
@@ -93,10 +111,21 @@ export function useToggleFavorite() {
 
 export function useStudentBookings() {
   const userId = useUserId();
+  const studentId = useActingStudentId();
   return useQuery({
-    queryKey: qk.bookings.student(userId ?? "guest"),
-    queryFn: () => services().bookings.listForStudent(userId!),
+    queryKey: qk.bookings.student(studentId ?? "guest"),
+    queryFn: () => services().bookings.listForStudent(userId!, studentId!),
+    enabled: Boolean(userId && studentId),
+  });
+}
+
+export function useBooking(bookingId: string) {
+  const userId = useUserId();
+  return useQuery({
+    queryKey: qk.bookings.detail(bookingId),
+    queryFn: () => services().bookings.getById(userId!, bookingId),
     enabled: Boolean(userId),
+    retry: false,
   });
 }
 
@@ -118,20 +147,35 @@ function useInvalidateBookings() {
       client.invalidateQueries({ queryKey: ["tutors", "slots"] }),
       client.invalidateQueries({ queryKey: ["dashboard"] }),
       client.invalidateQueries({ queryKey: qk.platform.overview }),
+      // Payments and cancellations lock or unlock conversations.
+      client.invalidateQueries({ queryKey: qk.conversations.all }),
+      client.invalidateQueries({ queryKey: qk.proposals.all }),
     ]);
 }
 
 export function useCreateBooking() {
   const userId = useUserId();
+  const studentId = useActingStudentId();
   const invalidate = useInvalidateBookings();
   return useMutation({
-    mutationFn: async (input: CreateBookingInput) => {
-      const booking = await services().bookings.create(userId!, input);
+    mutationFn: async (input: Omit<CreateBookingInput, "forStudentId">) => {
+      const forStudentId = studentId && studentId !== userId ? studentId : undefined;
+      const booking = await services().bookings.create(userId!, { ...input, forStudentId });
       // Charges `pricing.dueInApp`. A live provider may answer "requires_action" with a
       // hosted checkout URL; the prototype always settles instantly with a simulated payment.
       const payment = await services().payments.payForBooking(userId!, booking.id);
       return { ...booking, paymentStatus: payment.status === "simulated" ? "simulated" : booking.paymentStatus };
     },
+    onSettled: invalidate,
+  });
+}
+
+/** Retries the in-app payment for a confirmed booking that isn't paid yet. */
+export function usePayBooking() {
+  const userId = useUserId();
+  const invalidate = useInvalidateBookings();
+  return useMutation({
+    mutationFn: (bookingId: string) => services().payments.payForBooking(userId!, bookingId),
     onSettled: invalidate,
   });
 }
@@ -185,6 +229,8 @@ export function useConversation(id: string) {
     queryKey: qk.conversations.detail(id),
     queryFn: () => services().messaging.getConversation(userId!, id),
     enabled: Boolean(userId),
+    // "forbidden" won't change on retry.
+    retry: false,
   });
 }
 
@@ -194,24 +240,33 @@ export function useMessages(conversationId: string) {
     queryKey: qk.conversations.messages(conversationId),
     queryFn: () => services().messaging.listMessages(userId!, conversationId),
     enabled: Boolean(userId),
+    retry: false,
   });
 }
 
 export function useOpenConversation() {
   const userId = useUserId();
+  const studentId = useActingStudentId();
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (tutorId: string) => services().messaging.openWithTutor(userId!, tutorId),
+    mutationFn: (tutorId: string) =>
+      services().messaging.openWithTutor(userId!, tutorId, studentId && studentId !== userId ? studentId : undefined),
     onSuccess: () => client.invalidateQueries({ queryKey: qk.conversations.all }),
   });
+}
+
+export interface OutgoingMessage {
+  body: string;
+  attachments?: AttachmentInput[];
 }
 
 export function useSendMessage(conversationId: string) {
   const userId = useUserId();
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (body: string) => services().messaging.send(userId!, conversationId, body),
-    onMutate: async (body) => {
+    mutationFn: ({ body, attachments = [] }: OutgoingMessage) =>
+      services().messaging.send(userId!, { conversationId, body, attachments }),
+    onMutate: async ({ body, attachments = [] }) => {
       const key = qk.conversations.messages(conversationId);
       await client.cancelQueries({ queryKey: key });
       const optimistic: Message = {
@@ -219,6 +274,7 @@ export function useSendMessage(conversationId: string) {
         conversationId,
         senderId: userId!,
         body,
+        attachments: attachments.length ? attachments.map((a, i) => ({ ...a, id: `optimistic-att-${i}` })) : undefined,
         createdAt: new Date().toISOString(),
       };
       client.setQueryData<Message[]>(key, (old = []) => [...old, optimistic]);
@@ -248,6 +304,76 @@ export function useMarkConversationRead() {
         client.invalidateQueries({ queryKey: qk.conversations.list(userId!) }),
         client.invalidateQueries({ queryKey: qk.notifications(userId!) }),
       ]),
+  });
+}
+
+// ─── Lesson proposals ───────────────────────────────────────────────────────
+
+export function useConversationProposals(conversationId: string) {
+  const userId = useUserId();
+  return useQuery({
+    queryKey: qk.proposals.conversation(conversationId),
+    queryFn: () => services().proposals.listForConversation(userId!, conversationId),
+    enabled: Boolean(userId),
+    retry: false,
+  });
+}
+
+export function useProposal(proposalId: string) {
+  const userId = useUserId();
+  return useQuery({
+    queryKey: qk.proposals.detail(proposalId),
+    queryFn: () => services().proposals.getById(userId!, proposalId),
+    enabled: Boolean(userId),
+    retry: false,
+  });
+}
+
+export function useCreateProposal() {
+  const userId = useUserId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateProposalInput) => services().proposals.create(userId!, input),
+    onSuccess: (p) =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: qk.proposals.conversation(p.conversationId) }),
+        client.invalidateQueries({ queryKey: qk.conversations.messages(p.conversationId) }),
+      ]),
+  });
+}
+
+/** Accepts a proposal and pays the in-app part straight away (simulated in the prototype). */
+export function useAcceptProposal() {
+  const userId = useUserId();
+  const invalidate = useInvalidateBookings();
+  return useMutation({
+    mutationFn: async (input: AcceptProposalInput) => {
+      const booking = await services().proposals.accept(userId!, input);
+      // A live provider may answer "requires_action" with a hosted checkout URL to open.
+      const payment = await services().payments.payForBooking(userId!, booking.id);
+      return { booking, payment };
+    },
+    onSettled: invalidate,
+  });
+}
+
+export function useRespondToProposal() {
+  const userId = useUserId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ proposalId, action }: { proposalId: string; action: "decline" | "withdraw" }) =>
+      action === "decline" ? services().proposals.decline(userId!, proposalId) : services().proposals.withdraw(userId!, proposalId),
+    onSettled: () => client.invalidateQueries({ queryKey: qk.proposals.all }),
+  });
+}
+
+// ─── Classroom ──────────────────────────────────────────────────────────────
+
+export function useJoinClassroom() {
+  const userId = useUserId();
+  return useMutation({
+    mutationFn: ({ bookingId, demoIgnoreSchedule }: { bookingId: string; demoIgnoreSchedule?: boolean }) =>
+      services().classroom.join(userId!, bookingId, { demoIgnoreSchedule }),
   });
 }
 
@@ -287,6 +413,8 @@ export function useRealtimeSync(onNotification?: (n: import("@/domain/types").Ap
           old && !old.some((m) => m.id === event.message.id) ? [...old, event.message] : old,
         );
         client.invalidateQueries({ queryKey: qk.conversations.list(userId) });
+        if (event.message.kind === "proposal") client.invalidateQueries({ queryKey: qk.proposals.conversation(event.conversationId) });
+        if (event.message.kind === "system") client.invalidateQueries({ queryKey: qk.conversations.detail(event.conversationId) });
       }
       if (event.type === "read") {
         client.invalidateQueries({ queryKey: qk.conversations.messages(event.conversationId) });
@@ -294,8 +422,9 @@ export function useRealtimeSync(onNotification?: (n: import("@/domain/types").Ap
     });
     const offNotifications = s.notifications.subscribe(userId, (n) => {
       client.invalidateQueries({ queryKey: qk.notifications(userId) });
-      if (n.type.startsWith("booking_")) {
+      if (n.type.startsWith("booking_") || n.type.startsWith("proposal_")) {
         client.invalidateQueries({ queryKey: qk.bookings.all });
+        client.invalidateQueries({ queryKey: qk.proposals.all });
         client.invalidateQueries({ queryKey: ["dashboard"] });
       }
       onNotification?.(n);

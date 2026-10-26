@@ -47,9 +47,17 @@ On a laptop, a **Demo guide** panel next to the app links to each journey.
 | Messaging | Messages → open a chat → send; the tutor "types" and replies automatically |
 | Tutor experience | Profile → Switch to tutor mode → accept Sara's pending request, edit schedule |
 | Language | Profile → Language → English / العربية (full RTL ↔ LTR) |
+| Ask → proposal → pay → classroom | As Sara: Youssef's profile → Ask a question (attach an exercise). Try sending a phone number to see the warning. Switch to tutor → open Sara's chat → Send lesson proposal. Switch back → Review and pay → chat unlocks → Lessons → Demo: enter now. Then as the tutor, enter the same classroom from the dashboard |
+| Parent account | Profile → Try the parent account: lessons and messages for a younger student |
+| Admin | Profile → Open admin dashboard: commission, price limits, payment options, classroom window |
 | Reset | Tap the dark demo banner → Reset demo data |
 
-Demo accounts (password `demo1234`): `sara@demo.fahimni` (student), `youssef@demo.fahimni` (tutor).
+Demo accounts (password `demo1234`): `sara@demo.fahimni` (student), `youssef@demo.fahimni` (tutor),
+`fatima@demo.fahimni` (parent of a younger student), `admin@demo.fahimni` (admin).
+
+Pre-booking chat, proposals, payments and the video classroom are described in
+[docs/PRE_BOOKING_AND_CLASSROOM.md](docs/PRE_BOOKING_AND_CLASSROOM.md), including what is
+simulated and what needs real services before launch.
 
 Bookings with Youssef wait for his approval, so you can switch to tutor mode and accept
 them yourself. Other tutors either confirm instantly or auto-accept after a few seconds.

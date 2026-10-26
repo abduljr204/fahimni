@@ -22,9 +22,7 @@ $$;
 -- ─── Tutor profile details shown before booking ─────────────────────────────
 alter table public.tutor_profiles
   add column qualifications jsonb not null default '[]'::jsonb,       -- LocalizedText[]
-  add column grade_levels text[] not null default '{}',
-  add column intro_video_path text,                                   -- object in the private "intro-videos" bucket
-  add column intro_video_seconds integer;
+  add column grade_levels text[] not null default '{}';
 
 -- ─── Platform settings ──────────────────────────────────────────────────────
 alter table public.platform_settings

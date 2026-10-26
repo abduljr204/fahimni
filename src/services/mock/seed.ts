@@ -433,7 +433,7 @@ const tutorSeeds: TutorSeed[] = [
 ];
 
 /** Shown on tutor profiles before booking. Tutors without an entry get a profile built from their headline. */
-const PROFILE_EXTRAS: Record<string, { qualifications: LocalizedText[]; gradeLevels: GradeLevel[]; video?: LocalizedText }> = {
+const PROFILE_EXTRAS: Record<string, { qualifications: LocalizedText[]; gradeLevels: GradeLevel[] }> = {
   youssef: {
     qualifications: [
       { ar: "ماجستير في الرياضيات التطبيقية — جامعة تجريبية", en: "MSc in Applied Mathematics — Demo University" },
@@ -441,10 +441,6 @@ const PROFILE_EXTRAS: Record<string, { qualifications: LocalizedText[]; gradeLev
       { ar: "مساعد تدريس لمادة التحليل 1 و2 منذ 2021", en: "Teaching assistant for Calculus I and II since 2021" },
     ],
     gradeLevels: ["secondary", "university_early", "university_advanced"],
-    video: {
-      ar: "أهلًا، أنا يوسف. أدرّس التحليل والجبر منذ خمس سنوات. في الحصة الأولى نحدد معًا نقاط الضعف، ثم نحل تمارين الامتحانات خطوة بخطوة.",
-      en: "Hi, I'm Youssef. I've taught calculus and algebra for five years. In our first lesson we find your weak spots together, then work through exam problems step by step.",
-    },
   },
   salma: {
     qualifications: [
@@ -452,10 +448,6 @@ const PROFILE_EXTRAS: Record<string, { qualifications: LocalizedText[]; gradeLev
       { ar: "طبيبة مقيمة، قسم الجراحة العامة", en: "Resident doctor, general surgery" },
     ],
     gradeLevels: ["university_early", "university_advanced"],
-    video: {
-      ar: "مرحبًا، أنا سلمى. أستخدم الرسومات والخرائط الذهنية لتبسيط التشريح، مع أسئلة على نمط الامتحانات.",
-      en: "Hello, I'm Salma. I use diagrams and mind maps to make anatomy simpler, with questions in the exam format.",
-    },
   },
   amine: {
     qualifications: [
@@ -463,10 +455,6 @@ const PROFILE_EXTRAS: Record<string, { qualifications: LocalizedText[]; gradeLev
       { ar: "مهندس برمجيات منذ 6 سنوات", en: "Software engineer for 6 years" },
     ],
     gradeLevels: ["secondary", "university_early", "university_advanced"],
-    video: {
-      ar: "أنا أمين، مهندس برمجيات. دروسي عملية: نكتب الكود معًا ونفهم لماذا يعمل.",
-      en: "I'm Amin, a software engineer. My lessons are hands-on: we write code together and understand why it works.",
-    },
   },
 };
 
@@ -611,7 +599,6 @@ export function createSeed(now = new Date()): MockState {
     modes: t.modes,
     qualifications: PROFILE_EXTRAS[t.key]?.qualifications ?? [t.headline, t.university],
     gradeLevels: PROFILE_EXTRAS[t.key]?.gradeLevels ?? ["university_early", "university_advanced"],
-    introVideo: PROFILE_EXTRAS[t.key]?.video ? { durationSeconds: 48, transcript: PROFILE_EXTRAS[t.key].video! } : undefined,
     hourlyRate: money(t.rate),
     yearsExperience: t.years,
     rating: t.rating,

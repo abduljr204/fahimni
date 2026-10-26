@@ -7,7 +7,7 @@ private in-app classroom. Read this before connecting real payments or video.
 ## The journey
 
 1. A student (or a parent, for a younger student) reads the tutor's profile:
-   qualifications, levels taught, experience, price, availability, intro video and reviews.
+   qualifications, levels taught, experience, price, availability and reviews.
 2. They ask a question in the chat and may attach textbook pages or exercises
    (images or PDF, max 5 MB, max 4 per message).
 3. The tutor answers and taps **Send lesson proposal**: course, learning objectives,
@@ -139,7 +139,7 @@ LiveKit (open source or cloud), Daily, Twilio Video, Agora.
 ## Production checklist
 
 - Run `supabase/migrations/0003_pre_booking_and_classroom.sql` after 0001 and 0002.
-- Private storage buckets: `chat-attachments`, `intro-videos`; serve with short-lived signed URLs.
+- Private storage bucket `chat-attachments`; serve files with short-lived signed URLs.
 - Route Handlers (server, with the user's session; service-role key only where noted):
   - `POST /api/messages`: runs `detectContactDetails` for locked conversations, uploads
     attachments, inserts with the service role. (Unlocked conversations may insert directly.)

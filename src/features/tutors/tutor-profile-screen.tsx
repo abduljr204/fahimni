@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { Award, Clock, FlaskConical, GraduationCap, Languages, Lock, MapPin, MessageCircle, Play, Share2, UserX, Video, Zap } from "lucide-react";
+import { Award, Clock, GraduationCap, Languages, Lock, MapPin, MessageCircle, Share2, UserX, Video, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { use, useState } from "react";
 import { AppLink } from "@/components/layout/app-link";
@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { AnimatedNumber } from "@/components/ui/data-viz";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HeartButton } from "@/components/ui/heart-button";
-import { BottomSheet } from "@/components/ui/overlays";
 import { Badge, Card, Chip, SectionHeader, Skeleton, Stars } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
 import { brand } from "@/config/app-config";
@@ -175,57 +174,6 @@ function Credentials({ tutor }: { tutor: TutorProfile }) {
           </div>
         </div>
       </Card>
-    </section>
-  );
-}
-
-/** Intro video. The prototype has no recordings, so it plays a clearly labelled placeholder with the transcript. */
-function IntroVideo({ tutor }: { tutor: TutorProfile }) {
-  const { t, l } = useI18n();
-  const [open, setOpen] = useState(false);
-  if (!tutor.introVideo) return null;
-  const { durationSeconds, transcript } = tutor.introVideo;
-  const length = `${Math.floor(durationSeconds / 60)}:${String(durationSeconds % 60).padStart(2, "0")}`;
-  return (
-    <section className="px-5 pt-6">
-      <SectionHeader title={t.tutor.introVideo} />
-      <motion.button
-        type="button"
-        whileTap={{ scale: 0.98 }}
-        onClick={() => setOpen(true)}
-        className="relative block aspect-video w-full overflow-hidden rounded-3xl text-white shadow-card"
-        style={{ background: `linear-gradient(135deg, hsl(${tutor.avatarHue} 60% 45%), hsl(${(tutor.avatarHue + 50) % 360} 65% 25%))` }}
-        aria-label={t.tutor.watchIntro}
-      >
-        <span className="absolute inset-0 grid place-items-center">
-          <span className="grid size-16 place-items-center rounded-full bg-white/90 text-brand-700 shadow-float">
-            <Play className="ms-1 size-7 fill-current rtl:-scale-x-100" />
-          </span>
-        </span>
-        <span className="absolute start-3 bottom-3 rounded-full bg-ink-950/60 px-2.5 py-1 text-[12px] font-semibold">{t.tutor.watchIntro} · {length}</span>
-        {tutor.isDemo && (
-          <span className="absolute end-3 top-3 flex items-center gap-1 rounded-full bg-accent-400 px-2 py-0.5 text-[11px] font-bold text-ink-950">
-            <FlaskConical className="size-3" /> {t.common.demo}
-          </span>
-        )}
-      </motion.button>
-      <BottomSheet open={open} onClose={() => setOpen(false)} title={t.tutor.introVideo}>
-        <div className="space-y-4">
-          <div
-            className="relative grid aspect-video place-items-center overflow-hidden rounded-3xl"
-            style={{ background: `linear-gradient(135deg, hsl(${tutor.avatarHue} 60% 45%), hsl(${(tutor.avatarHue + 50) % 360} 65% 25%))` }}
-          >
-            <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 1.2, repeat: Infinity }}>
-              <Avatar name={l(tutor.displayName)} hue={tutor.avatarHue} size="xl" />
-            </motion.div>
-            <motion.span className="absolute inset-x-0 bottom-0 h-1 origin-left bg-white/80 rtl:origin-right" initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: durationSeconds, ease: "linear" }} />
-          </div>
-          <p className="rounded-2xl bg-ink-50 p-3 text-[15px] leading-relaxed text-ink-700">“{l(transcript)}”</p>
-          <p className="flex items-center gap-1.5 text-[12px] font-medium text-accent-600">
-            <FlaskConical className="size-3.5" /> {t.tutor.introDemo}
-          </p>
-        </div>
-      </BottomSheet>
     </section>
   );
 }
@@ -484,7 +432,6 @@ export function TutorProfileScreen({ params }: { params: Promise<{ id: string }>
           <motion.div key="profile" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Hero tutor={tutor} />
             <StatsRow tutor={tutor} />
-            <IntroVideo tutor={tutor} />
             <Subjects tutor={tutor} selected={subjectId} onSelect={(sid) => setSubjectId((cur) => (cur === sid ? undefined : sid))} />
             <About tutor={tutor} />
             <Credentials tutor={tutor} />

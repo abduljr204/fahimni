@@ -123,8 +123,6 @@ export interface TutorProfile extends BaseEntity {
   /** Degrees, certificates and relevant achievements, shown before booking. */
   qualifications: LocalizedText[];
   gradeLevels: GradeLevel[];
-  /** Short introduction video. In the prototype it is a labelled placeholder. */
-  introVideo?: { url?: string; durationSeconds: number; transcript: LocalizedText };
   hourlyRate: Money;
   yearsExperience: number;
   rating: number;

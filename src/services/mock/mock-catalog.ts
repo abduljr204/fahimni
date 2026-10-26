@@ -1,4 +1,5 @@
-import { availabilitySchema, reviewSchema } from "@/domain/validation";
+import { isRateWithinLimits } from "@/domain/pricing";
+import { availabilitySchema, hourlyRateSchema, reviewSchema } from "@/domain/validation";
 import type { Review, TutorProfile } from "@/domain/types";
 import type {
   FavoritesService,
@@ -101,6 +102,22 @@ export const mockTutorRepository: TutorRepository = {
       if (tutor.userId !== actorUserId) throw new ServiceError("forbidden");
       tutor.availability = availability;
       tutor.instantBook = patch.instantBook;
+      return clone(tutor);
+    });
+  },
+
+  async updateHourlyRate(actorUserId, tutorId, raw) {
+    const rate = parseInput(hourlyRateSchema, raw);
+    await latency(400, 700);
+    return mockDb.mutate((s) => {
+      const tutor = s.tutors.find((t) => t.id === tutorId);
+      if (!tutor) throw new ServiceError("not_found");
+      if (tutor.userId !== actorUserId) throw new ServiceError("forbidden");
+      if (!isRateWithinLimits(rate, s.settings)) {
+        throw new ServiceError("validation", undefined, { amountMinor: "rateOutOfRange" });
+      }
+      // Bookings store their own pricing, so existing requests and lessons are unaffected.
+      tutor.hourlyRate = rate;
       return clone(tutor);
     });
   },

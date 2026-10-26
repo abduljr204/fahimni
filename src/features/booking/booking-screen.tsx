@@ -1,25 +1,27 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
-import { BookOpen, CalendarDays, Clock, FlaskConical, MapPin, ShieldCheck, Video } from "lucide-react";
+import { BookOpen, CalendarDays, Clock, MapPin, ShieldCheck, Video } from "lucide-react";
 import { use, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Screen, TopBar } from "@/components/layout/screen";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { AnimatedNumber } from "@/components/ui/data-viz";
 import { Textarea } from "@/components/ui/field";
 import { BackChevron, Card, ForwardChevron, Skeleton } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
 import { brand } from "@/config/app-config";
-import { localDateKey, priceForDuration } from "@/domain/booking-rules";
-import { toMajor, toMinor } from "@/domain/money";
+import { localDateKey } from "@/domain/booking-rules";
+import { priceLesson } from "@/domain/pricing";
 import type { Booking, DaySlots, LessonMode } from "@/domain/types";
 import { createBookingSchema } from "@/domain/validation";
 import { AuthGate } from "@/features/auth/auth-gate";
+import { PaymentSplit, PriceBreakdown } from "@/features/pricing/price-breakdown";
 import { useSubjectMap } from "@/features/tutors/shared";
-import { useAvailableSlots, useCreateBooking, useTutor } from "@/hooks/use-data";
+import { useAvailableSlots, useCreateBooking, usePlatformSettings, useTutor } from "@/hooks/use-data";
 import { useI18n } from "@/i18n/i18n-provider";
-import { isServiceError } from "@/services";
+import { qk } from "@/lib/query-keys";
+import { getServices, isServiceError } from "@/services";
 import { BookingSuccess } from "./booking-success";
 import { StepProgress, SubjectStep, TimeStep } from "./booking-steps";
 
@@ -46,8 +48,10 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
   const { t, l, dayLabel, time, money, fmt, dir } = useI18n();
   const toast = useToast();
   const { data: tutor, isLoading } = useTutor(tutorId);
+  const { data: settings } = usePlatformSettings();
   const subjectMap = useSubjectMap();
   const create = useCreateBooking();
+  const queryClient = useQueryClient();
 
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
@@ -94,7 +98,12 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
 
   const subjects = useMemo(() => (tutor?.subjectIds ?? []).map((id) => subjectMap.get(id)).filter((s) => s !== undefined), [tutor, subjectMap]);
   const subject = resolved.subjectId ? subjectMap.get(resolved.subjectId) : undefined;
-  const price = tutor ? priceForDuration(tutor.hourlyRate, resolved.duration) : undefined;
+  // Preview only: the service prices the lesson again and rejects it if this quote is out of date.
+  const pricing =
+    tutor && settings
+      ? priceLesson({ hourlyRate: tutor.hourlyRate, durationMinutes: resolved.duration, mode: resolved.mode, commissionBps: settings.commissionBps })
+      : undefined;
+  const price = pricing?.total;
 
   const canContinue = step === 0 ? Boolean(resolved.subjectId) : step === 1 ? Boolean(resolved.startsAt) : true;
 
@@ -105,7 +114,7 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
   };
 
   const confirm = () => {
-    if (!tutor) return;
+    if (!tutor || !pricing) return;
     const input = {
       tutorId: tutor.id,
       subjectId: resolved.subjectId ?? "",
@@ -113,6 +122,8 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
       durationMinutes: resolved.duration,
       mode: resolved.mode,
       note: resolved.note || undefined,
+      expectedTotalMinor: pricing.total.amountMinor,
+      expectedDueInAppMinor: pricing.dueInApp.amountMinor,
     };
     const parsed = createBookingSchema.safeParse(input);
     if (!parsed.success) {
@@ -129,6 +140,11 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
           toast.error(t.booking.slotTaken);
           setDraft((d) => ({ ...d, startsAt: undefined }));
           go(1);
+        } else if (isServiceError(error, "price_changed")) {
+          // Stay on the summary; the refreshed rate and commission re-render the breakdown.
+          toast.error(t.booking.priceChanged);
+          void queryClient.invalidateQueries({ queryKey: qk.tutors.detail(tutorId) });
+          void queryClient.invalidateQueries({ queryKey: qk.platform.settings });
         } else toast.error(t.common.somethingWrong);
       },
     });
@@ -202,7 +218,7 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
                 onTime={(startsAt) => setDraft((d) => ({ ...d, startsAt }))}
               />
             )}
-            {step === 2 && subject && resolved.startsAt && price && (
+            {step === 2 && subject && resolved.startsAt && pricing && (
               <div className="space-y-5">
                 <Card className="p-4">
                   <h2 className="mb-1 text-lg font-bold">{t.booking.summary}</h2>
@@ -223,31 +239,13 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
                 </Card>
 
                 <Card className="p-4">
-                  <div className="flex justify-between py-1.5 text-sm">
-                    <span className="text-ink-500">{t.booking.lessonPrice}</span>
-                    <span className="font-semibold">{money(price)}</span>
-                  </div>
-                  <div className="flex justify-between py-1.5 text-sm">
-                    <span className="text-ink-500">{t.booking.platformFee}</span>
-                    <span className="font-semibold text-mint-600">{t.booking.free}</span>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between border-t border-dashed border-ink-200 pt-3">
-                    <span className="font-bold">{t.booking.total}</span>
-                    <AnimatedNumber
-                      value={toMajor(price.amountMinor, price.currency)}
-                      format={(n) => money({ currency: price.currency, amountMinor: toMinor(Math.round(n), price.currency) })}
-                      className="text-xl font-extrabold text-brand-700"
-                    />
-                  </div>
-                  <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="mt-3 flex items-center gap-2 rounded-xl bg-accent-100 px-3 py-2 text-[13px] font-medium text-accent-600"
-                  >
-                    <FlaskConical className="size-4 shrink-0" />
-                    {t.booking.paymentSimulated}
-                  </motion.div>
+                  <h2 className="mb-1 text-lg font-bold">{t.booking.priceBreakdown}</h2>
+                  <PriceBreakdown pricing={pricing} durationMinutes={resolved.duration} />
+                </Card>
+
+                <Card className="p-4">
+                  <h2 className="mb-3 text-lg font-bold">{t.booking.howYouPay}</h2>
+                  <PaymentSplit pricing={pricing} simulated={getServices().payments.kind === "simulated"} />
                 </Card>
 
                 <Textarea
@@ -292,8 +290,8 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
               <ForwardChevron className="size-4" />
             </Button>
           ) : (
-            <Button size="lg" className="ms-auto h-12 flex-1" loading={create.isPending} onClick={confirm}>
-              {t.booking.confirm}
+            <Button size="lg" className="ms-auto h-12 flex-1" loading={create.isPending} disabled={!pricing} onClick={confirm}>
+              {pricing ? fmt(t.booking.confirmAndPay, { amount: money(pricing.dueInApp) }) : t.booking.confirm}
             </Button>
           )}
         </div>

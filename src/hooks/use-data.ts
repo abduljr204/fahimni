@@ -2,8 +2,8 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import type { AvailabilityWindow, Message } from "@/domain/types";
-import type { CreateBookingInput, ReviewInput } from "@/domain/validation";
+import type { AvailabilityWindow, Message, Money } from "@/domain/types";
+import type { CreateBookingInput, PlatformSettingsInput, ReviewInput } from "@/domain/validation";
 import { qk } from "@/lib/query-keys";
 import { getServices, type TutorSearchFilters } from "@/services";
 import { useSession } from "./use-session";
@@ -117,6 +117,7 @@ function useInvalidateBookings() {
       client.invalidateQueries({ queryKey: qk.bookings.all }),
       client.invalidateQueries({ queryKey: ["tutors", "slots"] }),
       client.invalidateQueries({ queryKey: ["dashboard"] }),
+      client.invalidateQueries({ queryKey: qk.platform.overview }),
     ]);
 }
 
@@ -126,8 +127,10 @@ export function useCreateBooking() {
   return useMutation({
     mutationFn: async (input: CreateBookingInput) => {
       const booking = await services().bookings.create(userId!, input);
-      await services().payments.authorizeBooking(userId!, booking);
-      return booking;
+      // Charges `pricing.dueInApp`. A live provider may answer "requires_action" with a
+      // hosted checkout URL; the prototype always settles instantly with a simulated payment.
+      const payment = await services().payments.payForBooking(userId!, booking.id);
+      return { ...booking, paymentStatus: payment.status === "simulated" ? "simulated" : booking.paymentStatus };
     },
     onSettled: invalidate,
   });
@@ -326,6 +329,46 @@ export function useUpdateAvailability() {
       client.setQueryData(qk.tutors.detail(tutor.id), tutor);
       client.invalidateQueries({ queryKey: ["tutors", "slots"] });
     },
+  });
+}
+
+export function useUpdateHourlyRate() {
+  const { session } = useSession();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (rate: Money) => services().tutors.updateHourlyRate(session!.user.id, session!.tutorId!, rate),
+    onSuccess: (tutor) => {
+      client.setQueryData(qk.tutors.detail(tutor.id), tutor);
+      client.invalidateQueries({ queryKey: qk.tutors.all });
+      client.invalidateQueries({ queryKey: qk.platform.overview });
+    },
+  });
+}
+
+// ─── Platform & admin ───────────────────────────────────────────────────────
+
+export function usePlatformSettings() {
+  return useQuery({ queryKey: qk.platform.settings, queryFn: () => services().platform.getSettings() });
+}
+
+export function useUpdatePlatformSettings() {
+  const userId = useUserId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PlatformSettingsInput) => services().platform.updateSettings(userId!, input),
+    onSuccess: (settings) => {
+      client.setQueryData(qk.platform.settings, settings);
+      client.invalidateQueries({ queryKey: qk.platform.overview });
+    },
+  });
+}
+
+export function useAdminOverview() {
+  const { session, role } = useSession();
+  return useQuery({
+    queryKey: qk.platform.overview,
+    queryFn: () => services().platform.getOverview(session!.user.id),
+    enabled: role === "admin",
   });
 }
 

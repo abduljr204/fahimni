@@ -1,15 +1,12 @@
-import {
-  canCancel,
-  generateDaySlots,
-  isSlotBookable,
-  priceForDuration,
-} from "@/domain/booking-rules";
+import { canCancel, generateDaySlots, isSlotBookable } from "@/domain/booking-rules";
+import { priceLesson } from "@/domain/pricing";
 import type { Booking, BookingDetails } from "@/domain/types";
 import { createBookingSchema } from "@/domain/validation";
 import type { BookingService } from "../contracts";
 import { parseInput, ServiceError } from "../errors";
 import { clone, latency, mockDb, newId } from "./mock-db";
 import { pushNotification } from "./mock-notifications";
+import { refundBookingPayments } from "./mock-payments";
 import type { MockState } from "./seed";
 import { scheduleTutorResponse } from "./simulator";
 
@@ -82,6 +79,19 @@ export const mockBookingService: BookingService = {
       if (!isSlotBookable(tutor, tutorBookings, input.startsAt, input.durationMinutes)) {
         throw new ServiceError("slot_unavailable");
       }
+      // The price is fixed here, from the current rate and commission, and stored on the booking.
+      const pricing = priceLesson({
+        hourlyRate: tutor.hourlyRate,
+        durationMinutes: input.durationMinutes,
+        mode: input.mode,
+        commissionBps: s.settings.commissionBps,
+      });
+      if (
+        pricing.total.amountMinor !== input.expectedTotalMinor ||
+        pricing.dueInApp.amountMinor !== input.expectedDueInAppMinor
+      ) {
+        throw new ServiceError("price_changed");
+      }
 
       const now = new Date().toISOString();
       const id = newId("b");
@@ -95,7 +105,7 @@ export const mockBookingService: BookingService = {
         mode: input.mode,
         note: input.note || undefined,
         status: tutor.instantBook ? "confirmed" : "pending",
-        price: priceForDuration(tutor.hourlyRate, input.durationMinutes),
+        pricing,
         paymentStatus: "unpaid",
         meetingUrl: input.mode === "online" ? `https://meet.fahimni.example/demo-${id}` : undefined,
         location: input.mode === "in_person" ? { ar: "مكتبة الكلية — القاعة 3", en: "Faculty library — Room 3" } : undefined,
@@ -169,6 +179,7 @@ export const mockBookingService: BookingService = {
       if (!canCancel(booking)) throw new ServiceError("validation");
       booking.status = "cancelled";
       booking.updatedAt = new Date().toISOString();
+      refundBookingPayments(s, booking.id);
       const student = s.users.find((u) => u.id === booking.studentId)!;
       pushNotification(s, {
         userId: isStudent ? tutor.userId : booking.studentId,
@@ -199,6 +210,7 @@ export function respondToBooking(actorUserId: string, bookingId: string, accept:
     if (booking.status !== "pending") return clone(booking);
     booking.status = accept ? "confirmed" : "declined";
     booking.updatedAt = new Date().toISOString();
+    if (!accept) refundBookingPayments(s, booking.id);
     pushNotification(s, {
       userId: booking.studentId,
       type: accept ? "booking_confirmed" : "booking_declined",

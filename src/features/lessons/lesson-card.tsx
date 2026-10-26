@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { CalendarDays, Clock, MapPin, Video } from "lucide-react";
+import { Banknote, CalendarDays, Clock, MapPin, Video, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, Card } from "@/components/ui/primitives";
@@ -16,6 +16,45 @@ export const statusTone: Record<BookingStatus, "brand" | "mint" | "accent" | "co
   cancelled: "ink",
   completed: "brand",
 };
+
+/** Who pays what, from each party's point of view. */
+function PaymentLine({
+  booking,
+  perspective,
+  highlight,
+  active,
+}: {
+  booking: BookingDetails;
+  perspective: "student" | "tutor";
+  highlight?: boolean;
+  active: boolean;
+}) {
+  const { t, fmt, money } = useI18n();
+  const { pricing } = booking;
+  const cash = pricing.dueInCash.amountMinor > 0;
+  const refunded = booking.paymentStatus === "refunded";
+  const collecting = active && cash;
+
+  let text: string | undefined;
+  if (refunded) text = t.lessons.refunded;
+  else if (perspective === "tutor" && (active || booking.status === "completed")) {
+    text = collecting
+      ? fmt(t.lessons.collectCash, { amount: money(pricing.dueInCash) })
+      : fmt(t.lessons.youReceive, { amount: money(pricing.tutorEarnings) });
+  } else if (perspective === "student" && active) {
+    text = fmt(t.lessons.paidInApp, { amount: money(pricing.dueInApp) });
+    if (cash) text += ` · ${fmt(t.lessons.payCash, { amount: money(pricing.dueInCash) })}`;
+  }
+  if (!text) return null;
+
+  const Icon = collecting ? Banknote : Wallet;
+  return (
+    <p className={cn("mt-2 flex items-center gap-1.5 text-[12px] font-medium", highlight ? "text-white/80" : "text-ink-500")}>
+      <Icon className="size-3.5 shrink-0" aria-hidden />
+      {text}
+    </p>
+  );
+}
 
 /** Lesson summary used on the home screen, lessons list and tutor dashboard. */
 export function LessonCard({
@@ -94,9 +133,10 @@ export function LessonCard({
               ) : (
                 <MapPin className="size-3.5 opacity-70" aria-hidden />
               )}
-              {money(booking.price, { compact: true })}
+              {money(booking.pricing.total, { compact: true })}
             </span>
           </div>
+          <PaymentLine booking={booking} perspective={perspective} highlight={highlight} active={upcoming} />
           {booking.note && perspective === "tutor" && upcoming && (
             <p className="mt-3 rounded-2xl border border-dashed border-ink-200 p-2.5 text-[13px] text-ink-600">
               <span className="font-semibold text-ink-800">{t.dashboard.studentNote}: </span>

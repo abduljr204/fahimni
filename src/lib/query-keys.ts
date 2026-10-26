@@ -25,4 +25,9 @@ export const qk = {
   },
   notifications: (userId: string) => ["notifications", userId] as const,
   dashboard: (tutorId: string) => ["dashboard", tutorId] as const,
+  platform: {
+    all: ["platform"] as const,
+    settings: ["platform", "settings"] as const,
+    overview: ["platform", "overview"] as const,
+  },
 };

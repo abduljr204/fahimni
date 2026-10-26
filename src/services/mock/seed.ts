@@ -1,6 +1,6 @@
 import { brand } from "@/config/app-config";
-import { priceForDuration } from "@/domain/booking-rules";
 import { money as toMoney } from "@/domain/money";
+import { priceLesson } from "@/domain/pricing";
 import type {
   AppNotification,
   AvailabilityWindow,
@@ -8,6 +8,8 @@ import type {
   Conversation,
   LocalizedText,
   Message,
+  Payment,
+  PlatformSettings,
   Review,
   StudentProfile,
   Subject,
@@ -24,6 +26,7 @@ import type {
 export const DEMO_PASSWORD = "demo1234";
 export const DEMO_STUDENT_EMAIL = "sara@demo.fahimni";
 export const DEMO_TUTOR_EMAIL = "youssef@demo.fahimni";
+export const DEMO_ADMIN_EMAIL = "admin@demo.fahimni";
 
 export interface MockUser extends UserAccount {
   /** Prototype only: plain-text demo password kept in the browser. Never do this in production. */
@@ -41,13 +44,15 @@ export interface MockState {
   reviews: Review[];
   favorites: { userId: string; tutorId: string }[];
   bookings: Booking[];
+  payments: Payment[];
+  settings: PlatformSettings;
   conversations: Conversation[];
   messages: Message[];
   notifications: AppNotification[];
   profileViews: Record<string, number>;
 }
 
-export const MOCK_STATE_VERSION = 4;
+export const MOCK_STATE_VERSION = 5;
 
 const money = (major: number) => toMoney(major, brand.currency);
 
@@ -468,6 +473,17 @@ export function createSeed(now = new Date()): MockState {
       createdAt: created,
       isDemo: true,
     })),
+    {
+      id: "u-admin",
+      email: DEMO_ADMIN_EMAIL,
+      password: DEMO_PASSWORD,
+      role: "admin",
+      displayName: { ar: "إدارة فهمني", en: "Fahimni Admin" },
+      avatarHue: 160,
+      preferredLocale: "ar",
+      createdAt: created,
+      isDemo: true,
+    },
     ...tutorSeeds.map<MockUser>((t) => ({
       id: `u-${t.key}`,
       email: `${t.key}@demo.fahimni`,
@@ -554,6 +570,14 @@ export function createSeed(now = new Date()): MockState {
     }),
   );
 
+  // Demo value: 10% commission, rates between 20 and 150 LYD per hour.
+  const settings: PlatformSettings = {
+    commissionBps: 1000,
+    minHourlyRate: money(20),
+    maxHourlyRate: money(150),
+    updatedAt: created,
+  };
+
   const tutorById = (id: string) => tutors.find((t) => t.id === id)!;
   const booking = (
     id: string,
@@ -576,8 +600,8 @@ export function createSeed(now = new Date()): MockState {
       durationMinutes,
       mode,
       status,
-      price: priceForDuration(tutor.hourlyRate, durationMinutes),
-      paymentStatus: status === "completed" || status === "confirmed" ? "simulated" : "unpaid",
+      pricing: priceLesson({ hourlyRate: tutor.hourlyRate, durationMinutes, mode, commissionBps: settings.commissionBps }),
+      paymentStatus: status === "declined" || status === "cancelled" ? "refunded" : "simulated",
       meetingUrl: mode === "online" ? `https://meet.fahimni.example/demo-${id}` : undefined,
       location: mode === "in_person" ? { ar: "مكتبة الكلية — القاعة 3", en: "Faculty library — Room 3" } : undefined,
       createdAt: iso(ago(60 * 24 * 3)),
@@ -613,6 +637,21 @@ export function createSeed(now = new Date()): MockState {
     booking("b-13", "u-yassine", "t-youssef", "s-calculus", at(-36, 18), "completed"),
     booking("b-14", "u-hajar", "t-youssef", "s-stats", at(-40, 19), "completed"),
   ];
+
+  // Every seeded booking was paid through the (simulated) app when it was requested.
+  const payments: Payment[] = bookings.map((b) => ({
+    id: `pay-${b.id}`,
+    bookingId: b.id,
+    payerId: b.studentId,
+    amount: b.pricing.dueInApp,
+    purpose: b.pricing.settlement === "in_app" ? "lesson" : "commission_deposit",
+    provider: "simulated",
+    providerReference: `sim-${b.id}`,
+    status: b.paymentStatus === "refunded" ? "refunded" : "succeeded",
+    createdAt: b.createdAt,
+    updatedAt: b.updatedAt,
+    isDemo: true,
+  }));
 
   reviews.push({
     id: "r-sara-hamza",
@@ -693,6 +732,8 @@ export function createSeed(now = new Date()): MockState {
       { userId: "u-sara", tutorId: "t-salma" },
     ],
     bookings,
+    payments,
+    settings,
     conversations,
     messages,
     notifications,

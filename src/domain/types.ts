@@ -126,6 +126,44 @@ export interface Review extends BaseEntity {
   subjectId?: ID;
 }
 
+// ─── Platform ───────────────────────────────────────────────────────────────
+
+/** Marketplace rules managed by admins. Changes only affect lessons priced afterwards. */
+export interface PlatformSettings {
+  /** Platform commission in basis points: 1000 = 10%. Integers keep the maths exact. */
+  commissionBps: number;
+  minHourlyRate: Money;
+  maxHourlyRate: Money;
+  updatedAt: ISODateTime;
+  updatedBy?: ID;
+}
+
+/**
+ * How the student pays. Online lessons are paid in full through the app. For in-person
+ * lessons the student pays only the commission in the app and the rest in cash to the tutor.
+ */
+export type Settlement = "in_app" | "deposit_and_cash";
+
+/**
+ * The price agreed when a lesson is requested. It is stored on the booking and never
+ * recalculated, so later rate or commission changes leave existing lessons untouched.
+ * Invariants: commission + tutorEarnings = total, and dueInApp + dueInCash = total.
+ */
+export interface LessonPricing {
+  /** The tutor's hourly rate at the time of the request. */
+  hourlyRate: Money;
+  total: Money;
+  commissionBps: number;
+  /** Platform share, included in `total` (never added on top). */
+  commission: Money;
+  tutorEarnings: Money;
+  settlement: Settlement;
+  /** Charged through the app when booking. */
+  dueInApp: Money;
+  /** Paid by the student directly to the tutor at the lesson. */
+  dueInCash: Money;
+}
+
 // ─── Bookings ───────────────────────────────────────────────────────────────
 
 export type BookingStatus = "pending" | "confirmed" | "declined" | "cancelled" | "completed";
@@ -139,7 +177,8 @@ export interface Booking extends BaseEntity {
   durationMinutes: number;
   mode: LessonMode;
   status: BookingStatus;
-  price: Money;
+  pricing: LessonPricing;
+  /** State of the in-app part of the payment (`pricing.dueInApp`). */
   paymentStatus: PaymentStatus;
   note?: string;
   meetingUrl?: string;
@@ -154,6 +193,22 @@ export interface BookingDetails extends Booking {
   tutor: Pick<TutorProfile, "id" | "userId" | "displayName" | "avatarHue" | "avatarUrl" | "headline">;
   student: Pick<UserAccount, "id" | "displayName" | "avatarHue" | "avatarUrl">;
   subject: Subject;
+}
+
+export type PaymentPurpose = "lesson" | "commission_deposit";
+export type PaymentRecordStatus = "pending" | "requires_action" | "succeeded" | "failed" | "refunded";
+
+/** One charge made through the app. `provider: "simulated"` records never moved money. */
+export interface Payment extends BaseEntity {
+  bookingId: ID;
+  payerId: ID;
+  amount: Money;
+  /** "lesson" pays an online lesson in full; "commission_deposit" is the in-app part of an in-person lesson. */
+  purpose: PaymentPurpose;
+  provider: "simulated" | (string & {});
+  providerReference: string;
+  status: PaymentRecordStatus;
+  updatedAt: ISODateTime;
 }
 
 export interface TimeSlot {
@@ -235,4 +290,21 @@ export interface TutorStats {
   profileCompleteness: number; // 0-100
   /** Lessons per weekday for the current week, index 0 = Sunday. */
   weeklyLessons: number[];
+}
+
+export interface AdminPaymentRow extends Payment {
+  studentName: LocalizedText;
+  tutorName: LocalizedText;
+}
+
+export interface AdminOverview {
+  /** Confirmed and completed lessons. */
+  lessonCount: number;
+  grossVolume: Money;
+  commissionEarned: Money;
+  /** Money that went through the app (simulated in the prototype). */
+  collectedInApp: Money;
+  /** Paid by students to tutors directly for in-person lessons. */
+  paidInCash: Money;
+  recentPayments: AdminPaymentRow[];
 }

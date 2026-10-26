@@ -37,6 +37,7 @@ export function createSupabaseServices(): AppServices {
     notifications: service as AppServices["notifications"],
     payments: service as AppServices["payments"],
     dashboard: service as AppServices["dashboard"],
+    platform: service as AppServices["platform"],
   };
 }
 

@@ -8,7 +8,7 @@ import { Screen, TopBar } from "@/components/layout/screen";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Card, Skeleton } from "@/components/ui/primitives";
-import type { AppNotification, NotificationType } from "@/domain/types";
+import type { AppNotification, NotificationType, UserRole } from "@/domain/types";
 import { AuthGate } from "@/features/auth/auth-gate";
 import { useMarkAllNotificationsRead, useNotifications } from "@/hooks/use-data";
 import { useSession } from "@/hooks/use-session";
@@ -26,7 +26,7 @@ const meta: Record<NotificationType, { icon: LucideIcon; tone: string }> = {
   welcome: { icon: PartyPopper, tone: "bg-brand-50 text-brand-600" },
 };
 
-function targetFor(n: AppNotification, role: "student" | "tutor" | null): string | undefined {
+function targetFor(n: AppNotification, role: UserRole | null): string | undefined {
   if (n.data.conversationId) return `/messages/${n.data.conversationId}`;
   if (n.type === "booking_requested") return role === "tutor" ? "/tutor" : "/lessons";
   if (n.type.startsWith("booking_")) return "/lessons";

@@ -10,6 +10,7 @@ export type ServiceErrorCode =
   | "not_found"
   | "validation"
   | "slot_unavailable"
+  | "price_changed"
   | "not_configured"
   | "demo_data_in_production";
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { brand } from "@/config/app-config";
+import { MAX_COMMISSION_BPS } from "./pricing";
 
 /**
  * Input schemas shared by forms (client-side feedback) and services (authoritative
@@ -33,8 +34,29 @@ export const createBookingSchema = z.object({
     .refine((d) => (brand.lessonDurations as readonly number[]).includes(d), "required"),
   mode: z.enum(["online", "in_person"]),
   note: z.string().trim().max(500, "noteTooLong").optional(),
+  /**
+   * The amounts the student saw and agreed to. If the tutor's rate or the commission
+   * changed in the meantime, the booking is rejected with `price_changed`.
+   */
+  expectedTotalMinor: z.number().int().nonnegative(),
+  expectedDueInAppMinor: z.number().int().nonnegative(),
 });
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
+
+/** Tutors set whole-dinar hourly rates; the platform limits are checked by the service. */
+export const hourlyRateSchema = z.object({
+  amountMinor: z.number().int().positive("required"),
+  currency: z.literal(brand.currency),
+});
+
+export const platformSettingsSchema = z
+  .object({
+    commissionBps: z.number().int().min(0, "commissionRange").max(MAX_COMMISSION_BPS, "commissionRange"),
+    minHourlyRateMinor: z.number().int().positive("required"),
+    maxHourlyRateMinor: z.number().int().positive("required"),
+  })
+  .refine((s) => s.minHourlyRateMinor <= s.maxHourlyRateMinor, { message: "minAboveMax", path: ["maxHourlyRateMinor"] });
+export type PlatformSettingsInput = z.infer<typeof platformSettingsSchema>;
 
 export const sendMessageSchema = z.object({
   conversationId: z.string().min(1),

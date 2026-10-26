@@ -4,7 +4,7 @@ import type { AuthService, DemoControls } from "../contracts";
 import { parseInput, ServiceError } from "../errors";
 import { clone, latency, mockDb, newId } from "./mock-db";
 import { pushNotification } from "./mock-notifications";
-import { DEMO_STUDENT_EMAIL, DEMO_TUTOR_EMAIL, type MockState, type MockUser } from "./seed";
+import { DEMO_ADMIN_EMAIL, DEMO_STUDENT_EMAIL, DEMO_TUTOR_EMAIL, type MockState, type MockUser } from "./seed";
 
 /**
  * Prototype authentication: accounts live in the in-browser database and the
@@ -115,6 +115,7 @@ export const mockDemoControls: DemoControls = {
   accounts: [
     { role: "student", email: DEMO_STUDENT_EMAIL },
     { role: "tutor", email: DEMO_TUTOR_EMAIL },
+    { role: "admin", email: DEMO_ADMIN_EMAIL },
   ],
 
   async signInAs(role) {
@@ -130,7 +131,8 @@ export const mockDemoControls: DemoControls = {
         userId = mockDb.data.users.find((u) => u.email === DEMO_STUDENT_EMAIL)?.id;
       }
     } else {
-      userId = mockDb.data.users.find((u) => u.email === DEMO_TUTOR_EMAIL)?.id;
+      const email = role === "tutor" ? DEMO_TUTOR_EMAIL : DEMO_ADMIN_EMAIL;
+      userId = mockDb.data.users.find((u) => u.email === email)?.id;
     }
     if (!userId) throw new ServiceError("not_found");
     return setSession(userId)!;

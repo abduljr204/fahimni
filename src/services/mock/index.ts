@@ -7,9 +7,11 @@ import {
   mockSubjectRepository,
   mockTutorRepository,
 } from "./mock-catalog";
-import { mockDashboardService, mockPaymentService } from "./mock-dashboard";
+import { mockDashboardService } from "./mock-dashboard";
 import { mockMessagingService } from "./mock-messaging";
 import { mockNotificationService } from "./mock-notifications";
+import { mockPaymentService } from "./mock-payments";
+import { mockPlatformService } from "./mock-platform";
 import { startSimulator } from "./simulator";
 
 /** PROTOTYPE MODE services: seeded demo data, simulated realtime and payments. */
@@ -27,6 +29,7 @@ export function createMockServices(): AppServices {
     notifications: mockNotificationService,
     payments: mockPaymentService,
     dashboard: mockDashboardService,
+    platform: mockPlatformService,
     demo: mockDemoControls,
   };
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { Bell, CalendarCheck, CalendarClock, Check, Eye, FlaskConical, Inbox, MessageCircleReply, Star, TrendingDown, TrendingUp, X } from "lucide-react";
+import { Bell, CalendarCheck, CalendarClock, Check, Eye, FlaskConical, Inbox, MessageCircleReply, Star, Tag, TrendingDown, TrendingUp, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { AppLink } from "@/components/layout/app-link";
 import { Screen } from "@/components/layout/screen";
@@ -13,10 +13,11 @@ import { Badge, Card, ForwardChevron, SectionHeader, Skeleton } from "@/componen
 import { useToast } from "@/components/ui/toast";
 import { isUpcoming } from "@/domain/booking-rules";
 import { toMajor, toMinor } from "@/domain/money";
+import { bpsToPercent, hourlyEarnings } from "@/domain/pricing";
 import { SignInPrompt } from "@/features/auth/auth-gate";
 import { useRoleSwitch } from "@/features/demo/use-role-switch";
 import { LessonCard } from "@/features/lessons/lesson-card";
-import { useNotifications, useRespondToBooking, useTutorBookings, useTutorStats } from "@/hooks/use-data";
+import { useNotifications, usePlatformSettings, useRespondToBooking, useTutor, useTutorBookings, useTutorStats } from "@/hooks/use-data";
 import { useSession } from "@/hooks/use-session";
 import { useI18n } from "@/i18n/i18n-provider";
 import { fadeUp, stagger } from "@/lib/motion";
@@ -33,8 +34,43 @@ function StatTile({ icon, label, children, tone }: { icon: ReactNode; label: str
   );
 }
 
+function MyPriceCard() {
+  const { t, fmt, money, number } = useI18n();
+  const { session } = useSession();
+  const { data: tutor } = useTutor(session?.tutorId);
+  const { data: settings } = usePlatformSettings();
+  if (!tutor || !settings) return <Skeleton className="mx-5 mt-4 h-24 rounded-3xl" />;
+
+  return (
+    <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="px-5 pt-4">
+      <AppLink href="/tutor/pricing" className="block">
+        <Card className="flex items-center gap-4 p-4 transition-shadow hover:shadow-float">
+          <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-accent-100 text-accent-600">
+            <Tag className="size-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] text-ink-500">{t.dashboard.myPrice}</p>
+            <p className="text-xl font-extrabold">
+              {money(tutor.hourlyRate)} <span className="text-sm font-medium text-ink-500">{t.common.perHour}</span>
+            </p>
+            <p className="mt-0.5 text-[12px] text-ink-500">
+              {fmt(t.dashboard.myPriceBody, {
+                amount: money(hourlyEarnings(tutor.hourlyRate, settings.commissionBps)),
+                percent: number(bpsToPercent(settings.commissionBps)),
+              })}
+            </p>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-0.5 text-[13px] font-semibold text-brand-600">
+            {t.dashboard.editPrice} <ForwardChevron className="size-3.5" />
+          </span>
+        </Card>
+      </AppLink>
+    </motion.section>
+  );
+}
+
 function Requests() {
-  const { t, l, dayLabel, time, money } = useI18n();
+  const { t, l, fmt, dayLabel, time, money } = useI18n();
   const toast = useToast();
   const { data, isLoading } = useTutorBookings();
   const respond = useRespondToBooking();
@@ -83,7 +119,10 @@ function Requests() {
                       <div className="text-end text-[13px]">
                         <p className="font-bold">{dayLabel(b.startsAt)}</p>
                         <p className="text-ink-500">
-                          {time(b.startsAt)} · {money(b.price, { compact: true })}
+                          {time(b.startsAt)} · {money(b.pricing.total, { compact: true })}
+                        </p>
+                        <p className="text-[12px] font-semibold text-mint-600">
+                          {fmt(t.dashboard.youReceive, { amount: money(b.pricing.tutorEarnings) })}
                         </p>
                       </div>
                     </div>
@@ -186,7 +225,10 @@ function Dashboard() {
             <motion.span className="absolute -end-12 -top-12 size-44 rounded-full bg-white/10" animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 7, repeat: Infinity }} />
             <motion.span className="absolute -bottom-16 start-10 size-40 rounded-full bg-accent-400/20 blur-xl" animate={{ x: [0, 20, 0] }} transition={{ duration: 8, repeat: Infinity }} />
             <div className="relative flex items-start justify-between">
-              <p className="text-sm text-white/75">{t.dashboard.earnings}</p>
+              <div>
+                <p className="text-sm text-white/75">{t.dashboard.earnings}</p>
+                <p className="text-[11px] text-white/55">{t.dashboard.afterCommission}</p>
+              </div>
               <Badge tone="dark" className="bg-white/15">
                 <FlaskConical className="size-3" /> {t.dashboard.demoEarnings}
               </Badge>
@@ -225,6 +267,8 @@ function Dashboard() {
           </StatTile>
         </motion.section>
       )}
+
+      <MyPriceCard />
 
       {stats && (
         <section className="px-5 pt-8">

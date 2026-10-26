@@ -132,8 +132,20 @@ export function BookingSuccess({ booking, tutor, subject }: { booking: Booking; 
             </div>
             <div>
               <p className="text-ink-500">{t.booking.total}</p>
-              <p className="mt-0.5 font-bold">{money(booking.price, { compact: true })}</p>
+              <p className="mt-0.5 font-bold">{money(booking.pricing.total)}</p>
             </div>
+          </div>
+          <div className="mt-3 space-y-1.5 text-[13px]">
+            <div className="flex justify-between">
+              <span className="text-ink-500">{t.booking.paidNow}</span>
+              <span className="font-bold">{money(booking.pricing.dueInApp)}</span>
+            </div>
+            {booking.pricing.dueInCash.amountMinor > 0 && (
+              <div className="flex justify-between">
+                <span className="text-ink-500">{t.booking.cashAtLesson}</span>
+                <span className="font-bold">{money(booking.pricing.dueInCash)}</span>
+              </div>
+            )}
           </div>
           <p className="mt-3 text-center text-[12px] font-medium text-accent-600">{t.booking.paymentSimulated}</p>
         </Card>

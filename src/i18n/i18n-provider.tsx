@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { toMajor } from "@/domain/money";
+import { currencyExponent, toMajor } from "@/domain/money";
 import type { Locale, LocalizedText, Money } from "@/domain/types";
 import type { Dictionary } from "./dictionaries";
 import { directions, interpolate, intlLocales, localize } from "./config";
@@ -40,13 +40,17 @@ function createI18n(locale: Locale, dict: Dictionary) {
         f = new Intl.NumberFormat(tag, {
           style: "currency",
           currency: m.currency,
-          maximumFractionDigits: opts?.compact ? 0 : 2,
+          // Exact amounts keep every minor digit (LYD has 3) so price breakdowns always add up.
+          maximumFractionDigits: opts?.compact ? 0 : currencyExponent(m.currency),
           minimumFractionDigits: 0,
         });
         currencyFmts.set(key, f);
       }
       return f.format(toMajor(m.amountMinor, m.currency));
     },
+    /** Localized currency sign on its own, e.g. "د.ل." in Arabic and "LYD" in English. */
+    currencySymbol: (currency: string) =>
+      new Intl.NumberFormat(tag, { style: "currency", currency }).formatToParts(0).find((p) => p.type === "currency")?.value ?? currency,
     date: (iso: string | Date) => dateFmt.format(new Date(iso)),
     shortDate: (iso: string | Date) => shortDateFmt.format(new Date(iso)),
     weekday: (iso: string | Date) => weekdayFmt.format(new Date(iso)),

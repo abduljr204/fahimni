@@ -1,7 +1,7 @@
-import type { TutorDashboardService, PaymentService } from "../contracts";
+import type { TutorDashboardService } from "../contracts";
 import { toMinor } from "@/domain/money";
 import { ServiceError } from "../errors";
-import { latency, mockDb, newId } from "./mock-db";
+import { latency, mockDb } from "./mock-db";
 import { completeFinishedLessons } from "./mock-bookings";
 
 export const mockDashboardService: TutorDashboardService = {
@@ -26,7 +26,7 @@ export const mockDashboardService: TutorDashboardService = {
           const t = new Date(b.startsAt).getTime();
           return (b.status === "completed" || b.status === "confirmed") && t >= from && t < to;
         })
-        .reduce((sum, b) => sum + b.price.amountMinor, 0);
+        .reduce((sum, b) => sum + b.pricing.tutorEarnings.amountMinor, 0);
 
     const weeklyLessons = [0, 0, 0, 0, 0, 0, 0];
     for (const b of mine) {
@@ -52,18 +52,5 @@ export const mockDashboardService: TutorDashboardService = {
       profileCompleteness: 85,
       weeklyLessons: chart,
     };
-  },
-};
-
-/** Simulated payments: never contacts a provider and never moves money. */
-export const mockPaymentService: PaymentService = {
-  kind: "simulated",
-  async authorizeBooking(_actorUserId, booking) {
-    await latency(300, 500);
-    mockDb.mutate((s) => {
-      const b = s.bookings.find((x) => x.id === booking.id);
-      if (b) b.paymentStatus = "simulated";
-    });
-    return { status: "simulated", reference: newId("sim-pay") };
   },
 };

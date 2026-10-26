@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Bell, FlaskConical, Heart, Info, Languages, LayoutDashboard, GraduationCap, LogOut, RotateCcw } from "lucide-react";
+import { Bell, FlaskConical, Heart, Info, Languages, LayoutDashboard, GraduationCap, LogOut, RotateCcw, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { AppLink } from "@/components/layout/app-link";
@@ -122,7 +122,7 @@ export function ProfileScreen() {
                     {session.user.email}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    <Badge tone="brand">{role === "tutor" ? t.profile.tutor : t.profile.student}</Badge>
+                    <Badge tone="brand">{role === "tutor" ? t.profile.tutor : role === "admin" ? t.profile.admin : t.profile.student}</Badge>
                     {session.isDemo && (
                       <Badge tone="accent">
                         <FlaskConical className="size-3" /> {t.demo.demoAccount}
@@ -183,6 +183,9 @@ export function ProfileScreen() {
               label={role === "tutor" ? t.profile.switchToStudent : t.profile.switchToTutor}
               onClick={() => roles.switchTo(role === "tutor" ? "student" : "tutor")}
             />
+          )}
+          {roles.available && role !== "admin" && (
+            <Row icon={<ShieldCheck className="size-5" />} label={t.profile.switchToAdmin} onClick={() => roles.switchTo("admin")} />
           )}
           {appConfig.isPrototype && <Row icon={<RotateCcw className="size-5" />} label={t.demo.reset} onClick={resetter.open} />}
           <Row icon={<Info className="size-5" />} label={t.profile.mode}>

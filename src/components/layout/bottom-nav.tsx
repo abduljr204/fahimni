@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { CalendarDays, CalendarClock, Compass, House, LayoutDashboard, MessageCircle, UserRound } from "lucide-react";
+import { CalendarDays, CalendarClock, Compass, House, LayoutDashboard, MessageCircle, ShieldCheck, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useConversations } from "@/hooks/use-data";
 import { useSession } from "@/hooks/use-session";
@@ -42,13 +42,18 @@ export function BottomNav() {
     { href: "/profile", label: t.nav.profile, icon: UserRound, match: (p) => p.startsWith("/profile") || p.startsWith("/notifications") },
   ];
   const tutor: NavItem[] = [
-    { href: "/tutor", label: t.nav.dashboard, icon: LayoutDashboard, match: (p) => p === "/tutor" },
+    { href: "/tutor", label: t.nav.dashboard, icon: LayoutDashboard, match: (p) => p === "/tutor" || p.startsWith("/tutor/pricing") },
     { href: "/lessons", label: t.nav.lessons, icon: CalendarDays, match: (p) => p.startsWith("/lessons") },
     { href: "/tutor/schedule", label: t.nav.schedule, icon: CalendarClock, match: (p) => p.startsWith("/tutor/schedule") },
     { href: "/messages", label: t.nav.messages, icon: MessageCircle, match: (p) => p.startsWith("/messages"), badge: unread },
     { href: "/profile", label: t.nav.profile, icon: UserRound, match: (p) => p.startsWith("/profile") || p.startsWith("/notifications") },
   ];
-  const items = role === "tutor" ? tutor : student;
+  const admin: NavItem[] = [
+    { href: "/admin", label: t.nav.admin, icon: ShieldCheck, match: (p) => p.startsWith("/admin") },
+    { href: "/tutors", label: t.nav.explore, icon: Compass, match: (p) => p.startsWith("/tutors") },
+    { href: "/profile", label: t.nav.profile, icon: UserRound, match: (p) => p.startsWith("/profile") || p.startsWith("/notifications") },
+  ];
+  const items = role === "tutor" ? tutor : role === "admin" ? admin : student;
   const visible = shouldShowNav(path);
 
   return (

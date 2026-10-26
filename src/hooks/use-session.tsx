@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { Session } from "@/domain/types";
+import type { Session, UserRole } from "@/domain/types";
 import type { SignInInput, SignUpInput } from "@/domain/validation";
 import { getServices } from "@/services";
 
@@ -11,13 +11,13 @@ type SessionStatus = "loading" | "authenticated" | "guest";
 interface SessionContextValue {
   status: SessionStatus;
   session: Session | null;
-  /** The experience currently shown. Tutors see the dashboard navigation. */
-  role: "student" | "tutor" | null;
+  /** The experience currently shown. Tutors and admins get their own navigation. */
+  role: UserRole | null;
   signIn(input: SignInInput): Promise<Session>;
   signUp(input: SignUpInput): Promise<Session>;
   signOut(): Promise<void>;
-  /** Prototype only: jump between the demo student and demo tutor. */
-  switchDemoRole?(role: "student" | "tutor"): Promise<Session>;
+  /** Prototype only: jump between the demo student, tutor and admin. */
+  switchDemoRole?(role: UserRole): Promise<Session>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -55,13 +55,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signUp = useCallback((input: SignUpInput) => services.auth.signUp(input), [services]);
   const signOut = useCallback(() => services.auth.signOut(), [services]);
   const demo = services.demo;
-  const switchDemoRole = useMemo(() => (demo ? (role: "student" | "tutor") => demo.signInAs(role) : undefined), [demo]);
+  const switchDemoRole = useMemo(() => (demo ? (role: UserRole) => demo.signInAs(role) : undefined), [demo]);
 
   const value = useMemo<SessionContextValue>(
     () => ({
       status,
       session,
-      role: session ? (session.user.role === "tutor" ? "tutor" : "student") : null,
+      role: session?.user.role ?? null,
       signIn,
       signUp,
       signOut,

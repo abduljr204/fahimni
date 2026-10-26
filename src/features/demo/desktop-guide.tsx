@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   MessageCircle,
   RotateCcw,
+  ShieldCheck,
   Smartphone,
   UserPlus,
 } from "lucide-react";
@@ -101,6 +102,12 @@ export function DesktopGuide() {
           />
           <Journey
             index={5}
+            icon={<ShieldCheck className="size-4" />}
+            label={t.demo.journeys.admin}
+            onClick={() => roles.switchTo("admin")}
+          />
+          <Journey
+            index={6}
             icon={<Languages className="size-4" />}
             label={t.demo.journeys.language}
             onClick={() => change(locale === "ar" ? "en" : "ar")}
@@ -109,8 +116,8 @@ export function DesktopGuide() {
 
         <div className="mt-6 border-t border-ink-100 pt-5">
           <p className="mb-2 text-xs font-semibold tracking-wide text-ink-500 uppercase">{t.demo.personas}</p>
-          <div className="grid grid-cols-2 gap-2">
-            {(["student", "tutor"] as const).map((r) => (
+          <div className="grid grid-cols-3 gap-2">
+            {(["student", "tutor", "admin"] as const).map((r) => (
               <button
                 key={r}
                 type="button"
@@ -121,8 +128,8 @@ export function DesktopGuide() {
                   role === r ? "border-brand-500 bg-brand-50 text-brand-700" : "border-ink-200 text-ink-700 hover:border-ink-300",
                 )}
               >
-                {r === "student" ? <GraduationCap className="size-4" /> : <LayoutDashboard className="size-4" />}
-                {r === "student" ? t.demo.asStudent : t.demo.asTutor}
+                {r === "student" ? <GraduationCap className="size-4" /> : r === "tutor" ? <LayoutDashboard className="size-4" /> : <ShieldCheck className="size-4" />}
+                {r === "student" ? t.demo.asStudent : r === "tutor" ? t.demo.asTutor : t.demo.asAdmin}
               </button>
             ))}
           </div>

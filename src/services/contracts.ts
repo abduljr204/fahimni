@@ -1,5 +1,6 @@
 import type { AppMode } from "@/config/app-config";
 import type {
+  AdminOverview,
   AppNotification,
   AvailabilityWindow,
   Booking,
@@ -9,6 +10,8 @@ import type {
   ID,
   LessonMode,
   Message,
+  Money,
+  PlatformSettings,
   Review,
   Session,
   Subject,
@@ -16,7 +19,7 @@ import type {
   TutorProfile,
   TutorStats,
 } from "@/domain/types";
-import type { CreateBookingInput, ReviewInput, SignInInput, SignUpInput } from "@/domain/validation";
+import type { CreateBookingInput, PlatformSettingsInput, ReviewInput, SignInInput, SignUpInput } from "@/domain/validation";
 
 /**
  * Service contracts. The UI depends only on these interfaces; each backend
@@ -58,6 +61,11 @@ export interface TutorRepository {
     tutorId: ID,
     patch: { availability: AvailabilityWindow[]; instantBook: boolean },
   ): Promise<TutorProfile>;
+  /**
+   * Must fall within the platform limits. Only lessons requested afterwards use the
+   * new rate; existing requests and bookings keep their agreed price.
+   */
+  updateHourlyRate(actorUserId: ID, tutorId: ID, hourlyRate: Money): Promise<TutorProfile>;
 }
 
 export interface SubjectRepository {
@@ -109,22 +117,42 @@ export interface NotificationService {
 }
 
 export interface PaymentResult {
-  status: "simulated" | "authorized" | "failed";
+  /**
+   * "requires_action" means the student must finish on the provider's page (`redirectUrl`),
+   * as most hosted card checkouts require. The provider's webhook then confirms the payment.
+   */
+  status: "simulated" | "succeeded" | "requires_action" | "failed";
   reference: string;
+  amount: Money;
+  redirectUrl?: string;
 }
 
 export interface PaymentService {
   /** "simulated" never moves money; "live" talks to a real provider through the server. */
   readonly kind: "simulated" | "live";
-  authorizeBooking(actorUserId: ID, booking: Booking): Promise<PaymentResult>;
+  /**
+   * Charges the booking's in-app amount (`pricing.dueInApp`): the full price for online
+   * lessons, only the commission for in-person ones. The amount always comes from the
+   * stored booking, never from the client.
+   */
+  payForBooking(actorUserId: ID, bookingId: ID): Promise<PaymentResult>;
 }
 
 export interface TutorDashboardService {
   getStats(actorUserId: ID, tutorId: ID): Promise<TutorStats>;
 }
 
+export interface PlatformService {
+  /** Public: students need the commission to preview a lesson's price breakdown. */
+  getSettings(): Promise<PlatformSettings>;
+  /** Admins only. Affects lessons requested afterwards, never existing ones. */
+  updateSettings(actorUserId: ID, input: PlatformSettingsInput): Promise<PlatformSettings>;
+  /** Admins only. */
+  getOverview(actorUserId: ID): Promise<AdminOverview>;
+}
+
 export interface DemoAccount {
-  role: "student" | "tutor";
+  role: "student" | "tutor" | "admin";
   email: string;
 }
 
@@ -147,5 +175,6 @@ export interface AppServices {
   notifications: NotificationService;
   payments: PaymentService;
   dashboard: TutorDashboardService;
+  platform: PlatformService;
   demo?: DemoControls;
 }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { brand } from "@/config/app-config";
+import { ageFromBirthYear, isMinor, MIN_CHILD_AGE, normalizeLibyanPhone } from "./accounts";
 import { MAX_COMMISSION_BPS } from "./pricing";
 
 /**
@@ -8,13 +9,28 @@ import { MAX_COMMISSION_BPS } from "./pricing";
  * Error messages are dictionary keys under `validation.*`.
  */
 
+const fullName = z.string().trim().min(3, "nameTooShort").max(60, "nameTooLong");
+const email = z.email("emailInvalid").trim().toLowerCase();
+const password = z.string().min(8, "passwordTooShort").max(72, "passwordTooLong");
+const birthYear = z.coerce.number().int("required").min(1940, "required").max(new Date().getFullYear(), "required");
+/** Optional Libyan mobile number, stored in +218 form. */
+const phone = z
+  .string()
+  .trim()
+  .optional()
+  .refine((v) => !v || normalizeLibyanPhone(v) !== null, "phoneInvalid")
+  .transform((v) => (v ? normalizeLibyanPhone(v)! : undefined));
+const gradeLevel = z.enum(["secondary", "university_early", "university_advanced", "postgraduate"]);
+
 export const signUpSchema = z.object({
-  fullName: z.string().trim().min(3, "nameTooShort").max(60, "nameTooLong"),
-  email: z.email("emailInvalid").trim().toLowerCase(),
-  password: z.string().min(8, "passwordTooShort").max(72, "passwordTooLong"),
+  fullName,
+  email,
+  password,
   university: z.string().trim().min(2, "required").max(80),
   major: z.string().trim().min(2, "required").max(80),
   studyYear: z.coerce.number().int().min(1, "required").max(8),
+  // Younger students are registered by a parent instead (see parentSignUpSchema).
+  birthYear: birthYear.refine((y) => !isMinor(y), "underAge"),
   acceptTerms: z.literal(true, { error: "acceptTerms" }),
 });
 export type SignUpInput = z.infer<typeof signUpSchema>;
@@ -24,6 +40,53 @@ export const signInSchema = z.object({
   password: z.string().min(1, "required"),
 });
 export type SignInInput = z.infer<typeof signInSchema>;
+
+/** A younger student registered and managed by their parent. */
+export const childSchema = z.object({
+  fullName,
+  level: gradeLevel,
+  school: z.string().trim().min(2, "required").max(80),
+  studyYear: z.coerce.number().int().min(1, "required").max(12),
+  birthYear: birthYear.refine((y) => isMinor(y) && ageFromBirthYear(y) >= MIN_CHILD_AGE, "childAge"),
+});
+export type ChildInput = z.infer<typeof childSchema>;
+
+export const parentSignUpSchema = z.object({
+  fullName,
+  email,
+  password,
+  phone,
+  child: childSchema,
+  acceptTerms: z.literal(true, { error: "acceptTerms" }),
+  guardianConsent: z.literal(true, { error: "guardianConsent" }),
+});
+export type ParentSignUpInput = z.input<typeof parentSignUpSchema>;
+
+export const passwordResetRequestSchema = z.object({ email });
+
+export const passwordResetSchema = z.object({
+  token: z.string().min(1, "resetLinkInvalid"),
+  password,
+});
+
+export const changePasswordSchema = z
+  .object({ currentPassword: z.string().min(1, "required"), newPassword: password })
+  .refine((v) => v.currentPassword !== v.newPassword, { message: "samePassword", path: ["newPassword"] });
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+export const accountProfileSchema = z.object({
+  fullName,
+  phone,
+  university: z.string().trim().min(2, "required").max(80).optional(),
+  major: z.string().trim().min(2, "required").max(80).optional(),
+  studyYear: z.coerce.number().int().min(1).max(12).optional(),
+});
+export type AccountProfileInput = z.input<typeof accountProfileSchema>;
+
+const channelPrefs = z.object({ lessons: z.boolean(), messages: z.boolean(), account: z.boolean() });
+export const preferencesSchema = z.object({ email: channelPrefs, sms: channelPrefs, push: channelPrefs });
+
+export const deleteAccountSchema = z.object({ confirmEmail: email });
 
 const settlementSchema = z.enum(["in_app", "deposit_and_cash"]);
 
@@ -144,3 +207,76 @@ export function fieldErrors(error: z.ZodError): Record<string, string> {
   }
   return out;
 }
+
+// ─── Tutor onboarding ───────────────────────────────────────────────────────
+
+const spokenLanguage = z.enum(["ar", "libyan", "fr", "en", "amazigh"]);
+
+/** The public part of a tutor profile: used when applying and when editing later. */
+export const tutorProfileSchema = z.object({
+  headline: z.string().trim().min(10, "headlineTooShort").max(80, "nameTooLong"),
+  bio: z.string().trim().min(40, "bioTooShort").max(1000, "noteTooLong"),
+  university: z.string().trim().min(2, "required").max(80),
+  city: z.string().trim().min(2, "required").max(40),
+  languages: z.array(spokenLanguage).min(1, "pickOne"),
+  modes: z.array(z.enum(["online", "in_person"])).min(1, "pickOne"),
+  gradeLevels: z.array(gradeLevel).min(1, "pickOne"),
+  subjectIds: z.array(z.string().min(1)).min(1, "pickSubjects").max(6, "tooManySubjects"),
+  qualifications: z.array(z.string().trim().min(3, "required").max(120, "nameTooLong")).min(1, "addQualification").max(6),
+});
+export type TutorProfileInput = z.infer<typeof tutorProfileSchema>;
+
+export const tutorDocumentSchema = z.object({ kind: z.enum(["identity", "qualification"]), file: attachmentSchema });
+
+/** A new tutor applies with an account, a profile, a rate and documents for verification. */
+export const tutorApplicationSchema = tutorProfileSchema.extend({
+  fullName,
+  email,
+  password,
+  phone,
+  hourlyRateMinor: z.number().int().positive("required"),
+  documents: z
+    .array(tutorDocumentSchema)
+    .max(6, "tooManyFiles")
+    .refine((d) => d.some((x) => x.kind === "identity") && d.some((x) => x.kind === "qualification"), "documentsRequired"),
+  acceptTerms: z.literal(true, { error: "acceptTerms" }),
+  verificationConsent: z.literal(true, { error: "verificationConsent" }),
+});
+export type TutorApplicationInput = z.input<typeof tutorApplicationSchema>;
+
+export const reviewApplicationSchema = z
+  .object({ applicationId: z.string().min(1), approve: z.boolean(), note: z.string().trim().max(500, "noteTooLong").optional() })
+  .refine((v) => v.approve || (v.note?.length ?? 0) >= 5, { message: "reasonRequired", path: ["note"] });
+export type ReviewApplicationInput = z.infer<typeof reviewApplicationSchema>;
+
+// ─── Trust & safety ─────────────────────────────────────────────────────────
+
+const REPORT_REASONS = ["spam", "harassment", "inappropriate", "off_platform", "fake_profile", "safety", "other"] as const;
+const DISPUTE_REASONS = ["no_show", "quality", "billing", "other"] as const;
+
+export const reportSchema = z
+  .object({
+    kind: z.enum(["report", "dispute"]),
+    targetUserId: z.string().min(1),
+    reason: z.enum([...REPORT_REASONS, ...DISPUTE_REASONS]),
+    details: z.string().trim().max(1000, "noteTooLong").default(""),
+    messageId: z.string().optional(),
+    conversationId: z.string().optional(),
+    bookingId: z.string().optional(),
+  })
+  .refine((r) => (r.kind === "dispute" ? (DISPUTE_REASONS as readonly string[]).includes(r.reason) : (REPORT_REASONS as readonly string[]).includes(r.reason)), {
+    message: "required",
+    path: ["reason"],
+  })
+  .refine((r) => r.kind !== "dispute" || Boolean(r.bookingId), { message: "required", path: ["bookingId"] })
+  .refine((r) => r.reason !== "other" || r.details.length >= 10, { message: "detailsRequired", path: ["details"] });
+export type ReportInput = z.input<typeof reportSchema>;
+
+export const resolveReportSchema = z.object({
+  reportId: z.string().min(1),
+  action: z.enum(["none", "warning", "suspend", "unpublish", "refund"]),
+  dismiss: z.boolean().default(false),
+  note: z.string().trim().min(3, "reasonRequired").max(500, "noteTooLong"),
+  refundMinor: z.number().int().nonnegative().optional(),
+});
+export type ResolveReportInput = z.input<typeof resolveReportSchema>;

@@ -9,6 +9,7 @@ import { AnimatedNumber } from "@/components/ui/data-viz";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/field";
 import { Badge, Card, SectionHeader, Skeleton } from "@/components/ui/primitives";
+import { Tabs } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import { brand } from "@/config/app-config";
 import { money as toMoney, toMajor, toMinor } from "@/domain/money";
@@ -17,7 +18,8 @@ import type { Money, PlatformSettings, Settlement } from "@/domain/types";
 import { fieldErrors, platformSettingsSchema } from "@/domain/validation";
 import { SignInPrompt } from "@/features/auth/auth-gate";
 import { useRoleSwitch } from "@/features/demo/use-role-switch";
-import { useAdminOverview, usePlatformSettings, useTutorSearch, useUpdatePlatformSettings } from "@/hooks/use-data";
+import { ReportsPanel, VerificationPanel } from "./moderation-panels";
+import { useAdminOverview, useApplications, usePlatformSettings, useReportQueue, useTutorSearch, useUpdatePlatformSettings } from "@/hooks/use-data";
 import { useSession } from "@/hooks/use-session";
 import { useI18n } from "@/i18n/i18n-provider";
 import { fadeUp, stagger } from "@/lib/motion";
@@ -335,15 +337,46 @@ function RecentPayments() {
   );
 }
 
+type AdminTab = "overview" | "verification" | "reports";
+
+function AdminTabs() {
+  const { t } = useI18n();
+  const [tab, setTab] = useState<AdminTab>("overview");
+  const { data: applications } = useApplications();
+  const { data: reports } = useReportQueue();
+  return (
+    <>
+      <div className="px-5 pb-4">
+        <Tabs
+          value={tab}
+          onChange={setTab}
+          items={[
+            { value: "overview", label: t.admin.tabs.overview },
+            { value: "verification", label: t.admin.tabs.verification, badge: applications?.length || undefined },
+            { value: "reports", label: t.admin.tabs.reports, badge: reports?.length || undefined },
+          ]}
+        />
+      </div>
+      {tab === "overview" && (
+        <>
+          <Overview />
+          <SettingsEditor />
+          <RecentPayments />
+        </>
+      )}
+      {tab === "verification" && <VerificationPanel />}
+      {tab === "reports" && <ReportsPanel />}
+    </>
+  );
+}
+
 export function AdminScreen() {
   const { t } = useI18n();
   return (
     <Screen>
       <PageTitle title={t.admin.title} subtitle={t.admin.subtitle} />
       <AdminOnly>
-        <Overview />
-        <SettingsEditor />
-        <RecentPayments />
+        <AdminTabs />
       </AdminOnly>
     </Screen>
   );

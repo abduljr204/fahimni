@@ -56,7 +56,8 @@ function matches(tutor: TutorProfile, f: TutorSearchFilters): boolean {
 export const mockTutorRepository: TutorRepository = {
   async search(filters) {
     await latency(300, 700);
-    const list = mockDb.data.tutors.filter((t) => matches(t, filters));
+    // Unpublished profiles (awaiting verification, rejected or suspended) never appear in search.
+    const list = mockDb.data.tutors.filter((t) => t.published && matches(t, filters));
     const sort = filters.sort ?? "recommended";
     list.sort((a, b) => {
       switch (sort) {
@@ -88,7 +89,7 @@ export const mockTutorRepository: TutorRepository = {
     await latency(250, 550);
     return clone(
       [...mockDb.data.tutors]
-        .filter((t) => t.verification === "verified")
+        .filter((t) => t.published && t.verification === "verified")
         .sort((a, b) => recommendedScore(b) - recommendedScore(a))
         .slice(0, limit),
     );

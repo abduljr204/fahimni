@@ -35,21 +35,26 @@ export const mockDashboardService: TutorDashboardService = {
         weeklyLessons[new Date(t).getDay()] += 1;
       }
     }
-    // A little baseline so the demo chart never looks empty.
-    const baseline = [1, 2, 1, 3, 2, 0, 2];
+    // Seeded tutors get a little history so the demo dashboard isn't empty; new tutors start at zero.
+    const hasHistory = tutor.lessonsCompleted > 0;
+    const pad = (n: number) => (hasHistory ? n : 0);
+    const baseline = hasHistory ? [1, 2, 1, 3, 2, 0, 2] : [0, 0, 0, 0, 0, 0, 0];
     const chart = weeklyLessons.map((n, i) => n + baseline[i]);
+    // What makes a profile convincing to students; the dashboard tip points at the gaps.
+    const profileParts = [tutor.headline.en, tutor.bio.en, tutor.qualifications.length, tutor.subjectIds.length, tutor.availability.length, tutor.avatarUrl];
+    const currency = tutor.hourlyRate.currency;
 
     return {
-      earningsThisMonth: { currency: tutor.hourlyRate.currency, amountMinor: earned(monthStart, Number.MAX_SAFE_INTEGER) + toMinor(620, tutor.hourlyRate.currency) },
-      earningsLastMonth: { currency: tutor.hourlyRate.currency, amountMinor: earned(lastMonthStart, monthStart) + toMinor(780, tutor.hourlyRate.currency) },
-      lessonsThisMonth: mine.filter((b) => new Date(b.startsAt).getTime() >= monthStart && b.status !== "cancelled" && b.status !== "declined").length + 14,
+      earningsThisMonth: { currency, amountMinor: earned(monthStart, Number.MAX_SAFE_INTEGER) + toMinor(pad(620), currency) },
+      earningsLastMonth: { currency, amountMinor: earned(lastMonthStart, monthStart) + toMinor(pad(780), currency) },
+      lessonsThisMonth: mine.filter((b) => new Date(b.startsAt).getTime() >= monthStart && b.status !== "cancelled" && b.status !== "declined").length + pad(14),
       upcomingCount: mine.filter((b) => b.status === "confirmed" && new Date(b.startsAt) > now).length,
       pendingCount: mine.filter((b) => b.status === "pending").length,
       averageRating: tutor.rating,
       reviewCount: tutor.reviewCount,
-      responseRate: 98,
+      responseRate: hasHistory ? 98 : 100,
       profileViews: s.profileViews[tutorId] ?? 0,
-      profileCompleteness: 85,
+      profileCompleteness: Math.round((100 * profileParts.filter(Boolean).length) / profileParts.length),
       weeklyLessons: chart,
     };
   },

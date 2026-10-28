@@ -17,6 +17,7 @@ import { bpsToPercent, hourlyEarnings } from "@/domain/pricing";
 import { SignInPrompt } from "@/features/auth/auth-gate";
 import { useRoleSwitch } from "@/features/demo/use-role-switch";
 import { JoinLessonButton } from "@/features/classroom/join-lesson-button";
+import { ApplicationBanner } from "@/features/onboarding/application-banner";
 import { LessonCard } from "@/features/lessons/lesson-card";
 import { useNotifications, usePlatformSettings, useRespondToBooking, useTutor, useTutorBookings, useTutorStats } from "@/hooks/use-data";
 import { useSession } from "@/hooks/use-session";
@@ -222,6 +223,8 @@ function Dashboard() {
         </AppLink>
       </header>
 
+      <ApplicationBanner />
+
       <section className="px-5 pt-5">
         {isLoading || !stats ? (
           <Skeleton className="h-40 rounded-[28px]" />
@@ -307,6 +310,9 @@ function Dashboard() {
                 </AppLink>
                 <AppLink href="/tutor/schedule" className="inline-flex items-center gap-0.5 text-[13px] font-semibold text-brand-600">
                   {t.dashboard.manageSchedule} <ForwardChevron className="size-3.5" />
+                </AppLink>
+                <AppLink href="/tutor/profile" className="inline-flex items-center gap-0.5 text-[13px] font-semibold text-brand-600">
+                  {t.dashboard.editProfile} <ForwardChevron className="size-3.5" />
                 </AppLink>
               </div>
             </div>

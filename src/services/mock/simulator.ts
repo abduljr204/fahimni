@@ -1,5 +1,6 @@
 import { DEMO_TUTOR_EMAIL } from "./seed";
 import { mockDb } from "./mock-db";
+import { sendDueReminders } from "./mock-notifications";
 
 /**
  * Simulates the "other side" of the marketplace in prototype mode:
@@ -28,10 +29,16 @@ export function scheduleTutorResponse(bookingId: string, delay = AUTO_ACCEPT_DEL
 
 let started = false;
 
-/** Resumes simulations that were interrupted by a page reload. */
+/** Resumes simulations that were interrupted by a page reload, and runs the reminder job. */
 export function startSimulator(): void {
   if (started || typeof window === "undefined") return;
   started = true;
+  // The production scheduler's job: send lesson reminders that have come due.
+  const remind = () => {
+    if (mockDb.data.bookings.some((b) => b.status === "confirmed")) mockDb.mutate((s) => sendDueReminders(s));
+  };
+  remind();
+  window.setInterval(remind, 60_000);
   const now = Date.now();
   for (const b of mockDb.data.bookings) {
     if (b.status !== "pending") continue;

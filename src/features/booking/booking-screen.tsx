@@ -20,7 +20,7 @@ import { CancellationTerms } from "@/features/pricing/cancellation-terms";
 import { PaymentOptionPicker } from "@/features/pricing/payment-options";
 import { PaymentSplit, PriceBreakdown } from "@/features/pricing/price-breakdown";
 import { useSubjectMap } from "@/features/tutors/shared";
-import { useAvailableSlots, useCreateBooking, usePlatformSettings, useTutor } from "@/hooks/use-data";
+import { useActingStudentId, useAvailableSlots, useCreateBooking, usePlatformSettings, useTutor } from "@/hooks/use-data";
 import { useSession } from "@/hooks/use-session";
 import { useI18n } from "@/i18n/i18n-provider";
 import { qk } from "@/lib/query-keys";
@@ -54,7 +54,8 @@ function BookingFlow({ tutorId, initialSubject, initialStart }: { tutorId: strin
   const { data: tutor, isLoading } = useTutor(tutorId);
   const { data: settings } = usePlatformSettings();
   const { session } = useSession();
-  const child = session?.user.role === "parent" ? session.managedStudents?.[0] : undefined;
+  const actingStudentId = useActingStudentId();
+  const child = session?.user.role === "parent" ? session.managedStudents?.find((c) => c.userId === actingStudentId) : undefined;
   const subjectMap = useSubjectMap();
   const create = useCreateBooking();
   const queryClient = useQueryClient();

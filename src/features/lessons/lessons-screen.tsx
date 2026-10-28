@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { CalendarClock, CalendarX2, Check, CreditCard, Hourglass, MessageCircle, Star, X } from "lucide-react";
+import { CalendarClock, CalendarX2, Check, CreditCard, Flag, Hourglass, MessageCircle, Star, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { AppLink } from "@/components/layout/app-link";
@@ -19,7 +19,9 @@ import { refundFor } from "@/domain/refunds";
 import type { BookingDetails } from "@/domain/types";
 import { AuthGate } from "@/features/auth/auth-gate";
 import { JoinLessonButton } from "@/features/classroom/join-lesson-button";
+import { ReportSheet, type ReportTarget } from "@/features/moderation/report-sheet";
 import {
+  useActingStudentId,
   useCancelBooking,
   useCreateReview,
   useOpenConversation,
@@ -33,6 +35,12 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { LessonCard } from "./lesson-card";
 
 type Tab = "upcoming" | "pending" | "past";
+
+/** Problems can be reported for paid lessons, from the lesson time until 14 days after. */
+function canDispute(b: BookingDetails, now = Date.now()) {
+  const start = new Date(b.startsAt).getTime();
+  return b.status === "confirmed" && isPaid(b.paymentStatus) && now >= start && now <= start + 14 * 86_400_000;
+}
 
 function ReviewSheet({ booking, onClose }: { booking: BookingDetails | null; onClose: () => void }) {
   const { t, l, fmt } = useI18n();
@@ -119,6 +127,7 @@ function LessonsList() {
   const [tab, setTab] = useState<Tab>("upcoming");
   const [toCancel, setToCancel] = useState<BookingDetails | null>(null);
   const [toReview, setToReview] = useState<BookingDetails | null>(null);
+  const [disputing, setDisputing] = useState<ReportTarget | null>(null);
 
   const groups = useMemo(() => {
     const all = data ?? [];
@@ -192,14 +201,25 @@ function LessonsList() {
       );
     }
     if (!isTutor && b.lessonStatus === "completed") {
-      return b.reviewId ? (
-        <Badge tone="mint" className="mx-auto">
-          <Check className="size-3.5" /> {t.lessons.reviewed}
-        </Badge>
-      ) : (
-        <Button size="sm" variant="accent" block onClick={() => setToReview(b)}>
-          <Star className="size-4" /> {t.lessons.review}
+      const problem = canDispute(b) && (
+        <Button size="sm" variant="ghost" onClick={() => setDisputing({ kind: "dispute", targetUserId: b.tutor.userId, bookingId: b.id })} aria-label={t.report.problem}>
+          <Flag className="size-4" />
         </Button>
+      );
+      return b.reviewId ? (
+        <>
+          <Badge tone="mint" className="mx-auto">
+            <Check className="size-3.5" /> {t.lessons.reviewed}
+          </Badge>
+          {problem}
+        </>
+      ) : (
+        <>
+          <Button size="sm" variant="accent" className="flex-1" onClick={() => setToReview(b)}>
+            <Star className="size-4" /> {t.lessons.review}
+          </Button>
+          {problem}
+        </>
       );
     }
     return null;
@@ -283,6 +303,7 @@ function LessonsList() {
         }
       />
       <ReviewSheet booking={toReview} onClose={() => setToReview(null)} />
+      <ReportSheet target={disputing} onClose={() => setDisputing(null)} />
     </>
   );
 }
@@ -290,7 +311,8 @@ function LessonsList() {
 export function LessonsScreen() {
   const { t, l, fmt } = useI18n();
   const { session } = useSession();
-  const child = session?.user.role === "parent" ? session.managedStudents?.[0] : undefined;
+  const actingStudentId = useActingStudentId();
+  const child = session?.user.role === "parent" ? session.managedStudents?.find((c) => c.userId === actingStudentId) : undefined;
   return (
     <Screen>
       <PageTitle title={child ? fmt(t.lessons.titleFor, { name: l(child.displayName).split(" ")[0] }) : t.lessons.title} />

@@ -2,10 +2,18 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import type { AvailabilityWindow, Message, Money } from "@/domain/types";
+import type { AvailabilityWindow, Message, Money, NotificationPreferences } from "@/domain/types";
 import type {
   AcceptProposalInput,
+  AccountProfileInput,
   AttachmentInput,
+  ChangePasswordInput,
+  ChildInput,
+  ReportInput,
+  ResolveReportInput,
+  ReviewApplicationInput,
+  TutorApplicationInput,
+  TutorProfileInput,
   CreateBookingInput,
   CreateProposalInput,
   PlatformSettingsInput,
@@ -13,6 +21,7 @@ import type {
 } from "@/domain/validation";
 import { qk } from "@/lib/query-keys";
 import { getServices, type TutorSearchFilters } from "@/services";
+import { useActiveChildId } from "./use-active-child";
 import { useSession } from "./use-session";
 
 /**
@@ -32,8 +41,12 @@ function useUserId(): string | undefined {
  */
 export function useActingStudentId(): string | undefined {
   const { session } = useSession();
+  const activeChild = useActiveChildId();
   if (!session) return undefined;
-  if (session.user.role === "parent") return session.managedStudents?.[0]?.userId;
+  if (session.user.role === "parent") {
+    const children = session.managedStudents ?? [];
+    return (children.find((c) => c.userId === activeChild) ?? children[0])?.userId;
+  }
   return session.user.role === "student" ? session.user.id : undefined;
 }
 
@@ -514,4 +527,147 @@ export function useTypingIndicator(conversationId: string) {
     });
   }, [userId, conversationId]);
   return typing;
+}
+
+// ─── Account ────────────────────────────────────────────────────────────────
+
+export function useUpdateAccountProfile() {
+  const userId = useUserId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: AccountProfileInput) => services().account.updateProfile(userId!, input),
+    onSuccess: () => client.invalidateQueries(),
+  });
+}
+
+export function useChangePassword() {
+  const userId = useUserId();
+  return useMutation({ mutationFn: (input: ChangePasswordInput) => services().account.changePassword(userId!, input) });
+}
+
+export function usePreferences() {
+  const userId = useUserId();
+  return useQuery({
+    queryKey: qk.account.preferences(userId ?? "guest"),
+    queryFn: () => services().account.getPreferences(userId!),
+    enabled: Boolean(userId),
+  });
+}
+
+export function useUpdatePreferences() {
+  const userId = useUserId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (prefs: NotificationPreferences) => services().account.updatePreferences(userId!, prefs),
+    onSuccess: (prefs) => client.setQueryData(qk.account.preferences(userId!), prefs),
+  });
+}
+
+export function useDeliveries() {
+  const userId = useUserId();
+  return useQuery({
+    queryKey: qk.account.deliveries(userId ?? "guest"),
+    queryFn: () => services().account.listDeliveries(userId!),
+    enabled: Boolean(userId),
+  });
+}
+
+export function useAddChild() {
+  const userId = useUserId();
+  return useMutation({ mutationFn: (input: ChildInput) => services().account.addChild(userId!, input) });
+}
+
+export function useDeleteAccount() {
+  const userId = useUserId();
+  return useMutation({ mutationFn: (confirmEmail: string) => services().account.deleteAccount(userId!, confirmEmail) });
+}
+
+// ─── Tutor onboarding ───────────────────────────────────────────────────────
+
+/** Creates the tutor account and signs it in; the session listener picks up the change. */
+export function useApplyAsTutor() {
+  return useMutation({ mutationFn: (input: TutorApplicationInput) => services().onboarding.apply(input) });
+}
+
+export function useMyApplication() {
+  const { session } = useSession();
+  return useQuery({
+    queryKey: qk.onboarding.mine(session?.user.id ?? "guest"),
+    queryFn: () => services().onboarding.getMyApplication(session!.user.id),
+    enabled: session?.user.role === "tutor",
+  });
+}
+
+export function useUpdateTutorProfile() {
+  const { session } = useSession();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: TutorProfileInput) => services().onboarding.updateProfile(session!.user.id, session!.tutorId!, input),
+    onSuccess: (tutor) => {
+      client.setQueryData(qk.tutors.detail(tutor.id), tutor);
+      client.invalidateQueries({ queryKey: qk.tutors.all });
+    },
+  });
+}
+
+export function useApplications() {
+  const { session, role } = useSession();
+  return useQuery({
+    queryKey: qk.onboarding.queue,
+    queryFn: () => services().onboarding.listApplications(session!.user.id),
+    enabled: role === "admin",
+  });
+}
+
+export function useReviewApplication() {
+  const userId = useUserId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ReviewApplicationInput) => services().onboarding.reviewApplication(userId!, input),
+    onSettled: () =>
+      Promise.all([client.invalidateQueries({ queryKey: qk.onboarding.queue }), client.invalidateQueries({ queryKey: qk.tutors.all })]),
+  });
+}
+
+// ─── Trust & safety ─────────────────────────────────────────────────────────
+
+export function useReport() {
+  const userId = useUserId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ReportInput) => services().moderation.report(userId!, input),
+    onSuccess: () => client.invalidateQueries({ queryKey: qk.moderation.all }),
+  });
+}
+
+export function useMyReports() {
+  const userId = useUserId();
+  return useQuery({
+    queryKey: qk.moderation.mine(userId ?? "guest"),
+    queryFn: () => services().moderation.listMine(userId!),
+    enabled: Boolean(userId),
+  });
+}
+
+export function useReportQueue() {
+  const { session, role } = useSession();
+  return useQuery({
+    queryKey: qk.moderation.queue,
+    queryFn: () => services().moderation.listQueue(session!.user.id),
+    enabled: role === "admin",
+  });
+}
+
+export function useResolveReport() {
+  const userId = useUserId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ResolveReportInput) => services().moderation.resolve(userId!, input),
+    onSettled: () =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: qk.moderation.all }),
+        client.invalidateQueries({ queryKey: qk.platform.overview }),
+        client.invalidateQueries({ queryKey: qk.tutors.all }),
+      ]),
+  });
 }

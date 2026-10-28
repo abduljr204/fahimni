@@ -1,4 +1,5 @@
 import type { AppServices } from "../contracts";
+import { mockAccountService } from "./mock-account";
 import { mockAuthService, mockDemoControls } from "./mock-auth";
 import { mockBookingService } from "./mock-bookings";
 import { mockClassroomService } from "./mock-classroom";
@@ -10,7 +11,9 @@ import {
 } from "./mock-catalog";
 import { mockDashboardService } from "./mock-dashboard";
 import { mockMessagingService } from "./mock-messaging";
+import { mockModerationService } from "./mock-moderation";
 import { mockNotificationService } from "./mock-notifications";
+import { mockOnboardingService } from "./mock-onboarding";
 import { mockPaymentService } from "./mock-payments";
 import { mockPlatformService } from "./mock-platform";
 import { mockProposalService } from "./mock-proposals";
@@ -22,6 +25,9 @@ export function createMockServices(): AppServices {
   return {
     mode: "prototype",
     auth: mockAuthService,
+    account: mockAccountService,
+    onboarding: mockOnboardingService,
+    moderation: mockModerationService,
     tutors: mockTutorRepository,
     subjects: mockSubjectRepository,
     reviews: mockReviewRepository,

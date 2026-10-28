@@ -31,6 +31,19 @@ export const qk = {
   },
   notifications: (userId: string) => ["notifications", userId] as const,
   dashboard: (tutorId: string) => ["dashboard", tutorId] as const,
+  account: {
+    preferences: (userId: string) => ["account", "preferences", userId] as const,
+    deliveries: (userId: string) => ["account", "deliveries", userId] as const,
+  },
+  onboarding: {
+    mine: (userId: string) => ["onboarding", "mine", userId] as const,
+    queue: ["onboarding", "queue"] as const,
+  },
+  moderation: {
+    all: ["moderation"] as const,
+    mine: (userId: string) => ["moderation", "mine", userId] as const,
+    queue: ["moderation", "queue"] as const,
+  },
   platform: {
     all: ["platform"] as const,
     settings: ["platform", "settings"] as const,

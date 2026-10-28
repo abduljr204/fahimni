@@ -9,6 +9,13 @@ import type { MockState } from "./seed";
  * `conversation_unlocked`) that enforce the same rules in production.
  */
 
+/** Suspended accounts can read their data but can't message, book, pay or report. */
+export function requireActive(state: MockState, userId: string): void {
+  const user = state.users.find((u) => u.id === userId);
+  if (!user) throw new ServiceError("unauthorized");
+  if (user.suspendedAt) throw new ServiceError("account_suspended");
+}
+
 export function guardianOf(state: MockState, studentUserId: string): string | undefined {
   return state.students.find((s) => s.userId === studentUserId)?.guardianUserId;
 }

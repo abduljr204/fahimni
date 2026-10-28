@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { Check, CheckCheck, FilePlus2, FileText, FlaskConical, Lock, MessageSquareOff, Paperclip, SendHorizontal, Unlock, X } from "lucide-react";
+import { Check, CheckCheck, FilePlus2, FileText, Flag, FlaskConical, Lock, MessageSquareOff, Paperclip, SendHorizontal, Unlock, X } from "lucide-react";
 import { use, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AppLink } from "@/components/layout/app-link";
 import { Screen, TopBar } from "@/components/layout/screen";
@@ -15,6 +15,7 @@ import { detectContactDetails, redactContactDetails, type ContactFinding } from 
 import type { Attachment, ConversationSummary, LessonProposal, Message } from "@/domain/types";
 import { MAX_ATTACHMENTS, type AttachmentInput } from "@/domain/validation";
 import { AuthGate } from "@/features/auth/auth-gate";
+import { ReportSheet, type ReportTarget } from "@/features/moderation/report-sheet";
 import {
   useConversation,
   useConversationProposals,
@@ -99,12 +100,14 @@ function Bubble({
   senderLabel,
   showSimulated,
   onPreview,
+  onReport,
 }: {
   message: Message;
   mine: boolean;
   senderLabel?: string;
   showSimulated: boolean;
   onPreview: (a: Attachment) => void;
+  onReport?: () => void;
 }) {
   const { t, time } = useI18n();
   const optimistic = message.id.startsWith("optimistic-");
@@ -129,7 +132,11 @@ function Bubble({
           )}
         >
           {message.attachments?.length ? <AttachmentList attachments={message.attachments} mine={mine} onPreview={onPreview} /> : null}
-          {message.body && <p className={cn(message.attachments?.length && "px-2 pb-0.5")}>{message.body}</p>}
+          {message.body && (
+            <p dir="auto" className={cn("text-start", message.attachments?.length && "px-2 pb-0.5")}>
+              {message.body}
+            </p>
+          )}
         </div>
         <div className={cn("mt-1 flex items-center gap-1 px-1.5 text-[11px] text-ink-400", mine && "justify-end")}>
           {showSimulated && message.isSimulated && (
@@ -138,6 +145,11 @@ function Bubble({
             </span>
           )}
           <span>{time(message.createdAt)}</span>
+          {onReport && !message.isSimulated && (
+            <button type="button" onClick={onReport} className="ms-1 inline-flex items-center gap-0.5 text-ink-400 hover:text-coral-600" aria-label={t.report.reportMessage}>
+              <Flag className="size-3" />
+            </button>
+          )}
           {mine &&
             (optimistic ? (
               <Check className="size-3.5 opacity-50" aria-hidden />
@@ -405,6 +417,7 @@ function Chat({ conversationId }: { conversationId: string }) {
   const firstScroll = useRef(true);
   const [preview, setPreview] = useState<Attachment | null>(null);
   const [proposing, setProposing] = useState(false);
+  const [reporting, setReporting] = useState<ReportTarget | null>(null);
   const me = session?.user.id;
   const viewerIsTutor = Boolean(conversation && conversation.tutorUserId === me);
   const { data: tutor } = useTutor(viewerIsTutor ? conversation?.tutorId : undefined);
@@ -461,14 +474,26 @@ function Chat({ conversationId }: { conversationId: string }) {
       <TopBar
         backHref="/messages"
         actions={
-          conversation &&
-          (profileHref ? (
-            <AppLink href={profileHref}>
-              <Avatar name={name} hue={conversation.counterpart.avatarHue} size="sm" />
-            </AppLink>
-          ) : (
-            <Avatar name={name} hue={conversation.counterpart.avatarHue} size="sm" />
-          ))
+          conversation && (
+            <>
+              <button
+                type="button"
+                onClick={() => setReporting({ kind: "report", targetUserId: conversation.counterpart.id, conversationId })}
+                className="grid size-9 place-items-center rounded-full text-ink-400 hover:bg-white hover:text-coral-600"
+                aria-label={t.report.reportUser}
+                title={t.report.reportUser}
+              >
+                <Flag className="size-4" />
+              </button>
+              {profileHref ? (
+                <AppLink href={profileHref}>
+                  <Avatar name={name} hue={conversation.counterpart.avatarHue} size="sm" />
+                </AppLink>
+              ) : (
+                <Avatar name={name} hue={conversation.counterpart.avatarHue} size="sm" />
+              )}
+            </>
+          )
         }
         title={name || " "}
       />
@@ -516,7 +541,18 @@ function Chat({ conversationId }: { conversationId: string }) {
                 if (m.kind === "proposal") {
                   return proposal ? <ProposalCard key={m.id} proposal={proposal} viewerIsTutor={viewerIsTutor} showSimulated={appConfig.isPrototype} /> : <Skeleton key={m.id} className="mx-auto h-48 w-[92%] rounded-3xl" />;
                 }
-                return <Bubble key={m.id} message={m} mine={m.senderId === me} senderLabel={senderLabel(m)} showSimulated={appConfig.isPrototype} onPreview={setPreview} />;
+                const mine = m.senderId === me;
+                return (
+                  <Bubble
+                    key={m.id}
+                    message={m}
+                    mine={mine}
+                    senderLabel={senderLabel(m)}
+                    showSimulated={appConfig.isPrototype}
+                    onPreview={setPreview}
+                    onReport={mine ? undefined : () => setReporting({ kind: "report", targetUserId: m.senderId, messageId: m.id, conversationId, context: m.body.slice(0, 140) })}
+                  />
+                );
               })}
             </div>
           ))
@@ -550,6 +586,7 @@ function Chat({ conversationId }: { conversationId: string }) {
         <ProposalForm open={proposing} onClose={() => setProposing(false)} conversationId={conversation.id} tutor={tutor} unlocked={conversation.unlocked} />
       )}
 
+      <ReportSheet target={reporting} onClose={() => setReporting(null)} />
       <BottomSheet open={Boolean(preview)} onClose={() => setPreview(null)} title={preview?.name}>
         {preview && (
           // eslint-disable-next-line @next/next/no-img-element -- data URLs from the prototype store

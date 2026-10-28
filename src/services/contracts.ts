@@ -1,6 +1,7 @@
 import type { AppMode } from "@/config/app-config";
 import type {
   AdminOverview,
+  ApplicationDetails,
   AppNotification,
   AvailabilityWindow,
   Booking,
@@ -12,25 +13,40 @@ import type {
   LessonMode,
   Message,
   LessonProposal,
+  ManagedStudent,
   Money,
+  NotificationPreferences,
+  OutboundMessage,
   PlatformSettings,
   ProposalDetails,
+  Report,
+  ReportDetails,
   Review,
   Session,
   Subject,
   SubjectCategory,
+  TutorApplication,
   TutorProfile,
   TutorStats,
 } from "@/domain/types";
 import type {
   AcceptProposalInput,
+  AccountProfileInput,
+  ChangePasswordInput,
+  ChildInput,
   CreateBookingInput,
   CreateProposalInput,
+  ParentSignUpInput,
   PlatformSettingsInput,
+  ReportInput,
+  ResolveReportInput,
+  ReviewApplicationInput,
   ReviewInput,
   SendMessageInput,
   SignInInput,
   SignUpInput,
+  TutorApplicationInput,
+  TutorProfileInput,
 } from "@/domain/validation";
 
 /**
@@ -44,10 +60,63 @@ export type Unsubscribe = () => void;
 
 export interface AuthService {
   getSession(): Promise<Session | null>;
+  /** Adult students only; younger students are registered by a parent. */
   signUp(input: SignUpInput): Promise<Session>;
+  /** Creates the parent's account and their child's managed student profile. */
+  signUpParent(input: ParentSignUpInput): Promise<Session>;
+  /** Throws `account_suspended` for suspended accounts. */
   signIn(input: SignInInput): Promise<Session>;
   signOut(): Promise<void>;
+  /**
+   * Emails a single-use reset link if the address has an account; always resolves the same way
+   * so it can't be used to discover accounts. Only the prototype returns `demoResetPath`, so
+   * testers can open the simulated email's link.
+   */
+  requestPasswordReset(email: string): Promise<{ demoResetPath?: string }>;
+  resetPassword(token: string, newPassword: string): Promise<void>;
   onAuthStateChange(listener: (session: Session | null) => void): Unsubscribe;
+}
+
+/** The signed-in user's own account. */
+export interface AccountService {
+  updateProfile(actorUserId: ID, input: AccountProfileInput): Promise<Session>;
+  changePassword(actorUserId: ID, input: ChangePasswordInput): Promise<void>;
+  getPreferences(actorUserId: ID): Promise<NotificationPreferences>;
+  updatePreferences(actorUserId: ID, prefs: NotificationPreferences): Promise<NotificationPreferences>;
+  /** Email/SMS/push notifications sent to this user (simulated in the prototype). */
+  listDeliveries(actorUserId: ID): Promise<OutboundMessage[]>;
+  /** Parents only. */
+  addChild(actorUserId: ID, input: ChildInput): Promise<ManagedStudent>;
+  /**
+   * Deletes the account and its personal data. Refused while the user has upcoming paid
+   * lessons, so nobody loses a lesson or a refund by accident.
+   */
+  deleteAccount(actorUserId: ID, confirmEmail: string): Promise<void>;
+}
+
+/** Becoming a tutor, and the admin verification queue. */
+export interface TutorOnboardingService {
+  /**
+   * Creates a tutor account with an unpublished profile and a pending application, then signs
+   * the applicant in. The profile appears in search once an admin approves it.
+   */
+  apply(input: TutorApplicationInput): Promise<Session>;
+  getMyApplication(actorUserId: ID): Promise<TutorApplication | null>;
+  updateProfile(actorUserId: ID, tutorId: ID, input: TutorProfileInput): Promise<TutorProfile>;
+  /** Admins only. */
+  listApplications(actorUserId: ID): Promise<ApplicationDetails[]>;
+  reviewApplication(actorUserId: ID, input: ReviewApplicationInput): Promise<TutorApplication>;
+}
+
+/** Reports, lesson disputes and the admin moderation queue. */
+export interface ModerationService {
+  /** Participants only: you can report people you have a conversation or booking with. */
+  report(actorUserId: ID, input: ReportInput): Promise<Report>;
+  listMine(actorUserId: ID): Promise<Report[]>;
+  /** Admins only. */
+  listQueue(actorUserId: ID): Promise<ReportDetails[]>;
+  /** Admins only. Applies the action (warning, suspension, unpublishing, refund) and closes the report. */
+  resolve(actorUserId: ID, input: ResolveReportInput): Promise<Report>;
 }
 
 export type TutorSort = "recommended" | "rating" | "priceAsc" | "priceDesc";
@@ -227,6 +296,9 @@ export interface DemoControls {
 export interface AppServices {
   mode: AppMode;
   auth: AuthService;
+  account: AccountService;
+  onboarding: TutorOnboardingService;
+  moderation: ModerationService;
   tutors: TutorRepository;
   subjects: SubjectRepository;
   reviews: ReviewRepository;

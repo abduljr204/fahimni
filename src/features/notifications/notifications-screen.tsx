@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { BellOff, CalendarCheck, CalendarClock, CalendarX2, CheckCheck, FileText, MessageCircle, PartyPopper, Star } from "lucide-react";
+import { BadgeCheck, BellOff, CalendarCheck, CalendarClock, CalendarX2, CheckCheck, FileText, Flag, MessageCircle, PartyPopper, ShieldAlert, Star, UserX } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AppLink } from "@/components/layout/app-link";
 import { Screen, TopBar } from "@/components/layout/screen";
@@ -26,6 +26,10 @@ const meta: Record<NotificationType, { icon: LucideIcon; tone: string }> = {
   proposal_received: { icon: FileText, tone: "bg-brand-50 text-brand-600" },
   proposal_accepted: { icon: CalendarCheck, tone: "bg-mint-100 text-mint-600" },
   proposal_declined: { icon: CalendarX2, tone: "bg-coral-100 text-coral-600" },
+  application_approved: { icon: BadgeCheck, tone: "bg-mint-100 text-mint-600" },
+  application_rejected: { icon: UserX, tone: "bg-coral-100 text-coral-600" },
+  report_resolved: { icon: Flag, tone: "bg-brand-50 text-brand-600" },
+  account_warning: { icon: ShieldAlert, tone: "bg-coral-100 text-coral-600" },
   welcome: { icon: PartyPopper, tone: "bg-brand-50 text-brand-600" },
 };
 
@@ -33,7 +37,9 @@ function targetFor(n: AppNotification, role: UserRole | null): string | undefine
   if (n.data.conversationId) return `/messages/${n.data.conversationId}`;
   if (n.type === "booking_requested") return role === "tutor" ? "/tutor" : "/lessons";
   if (n.type.startsWith("booking_")) return "/lessons";
-  if (n.type === "welcome") return "/tutors";
+  if (n.type === "welcome") return role === "tutor" ? "/tutor" : "/tutors";
+  if (n.type.startsWith("application_")) return "/tutor";
+  if (n.type === "report_resolved") return "/settings";
   return undefined;
 }
 

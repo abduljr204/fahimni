@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { GraduationCap, LayoutDashboard, Lock, Mail, School, UserRound } from "lucide-react";
+import { GraduationCap, LayoutDashboard, Lock, Mail, Presentation, School, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { use, useState, type FormEvent } from "react";
 import { AppLink } from "@/components/layout/app-link";
@@ -9,6 +9,7 @@ import { Screen, TopBar } from "@/components/layout/screen";
 import { LogoMark } from "@/components/illustrations/logo";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
+import { Tabs } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import { appConfig } from "@/config/app-config";
 import { fieldErrors, signInSchema, signUpSchema } from "@/domain/validation";
@@ -16,6 +17,7 @@ import { useRoleSwitch } from "@/features/demo/use-role-switch";
 import { useSession } from "@/hooks/use-session";
 import { useI18n } from "@/i18n/i18n-provider";
 import { isServiceError } from "@/services";
+import { ParentSignUpForm } from "./parent-sign-up";
 
 /** Only allow relative, in-app redirects to avoid open-redirect issues. */
 function safeNext(next: string | undefined): string {
@@ -82,6 +84,8 @@ export function SignUpScreen({ searchParams }: { searchParams: Promise<{ next?: 
   const [attempt, setAttempt] = useState(0);
   const [loading, setLoading] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [accountType, setAccountType] = useState<"student" | "parent">("student");
+  const year = new Date().getFullYear();
 
   const err = (key: string) => (errors[key] ? t.validation[errors[key] as keyof typeof t.validation] ?? t.validation.required : undefined);
 
@@ -103,6 +107,7 @@ export function SignUpScreen({ searchParams }: { searchParams: Promise<{ next?: 
       router.push(href(next));
     } catch (error) {
       if (isServiceError(error, "email_taken")) setErrors({ email: "emailTaken" });
+      else if (isServiceError(error, "rate_limited")) toast.error(t.errors.rateLimited);
       else toast.error(t.common.somethingWrong);
     } finally {
       setLoading(false);
@@ -113,6 +118,22 @@ export function SignUpScreen({ searchParams }: { searchParams: Promise<{ next?: 
     <Screen variant="push" withNav={false} className="pb-10">
       <TopBar transparent />
       <AuthHeader title={t.auth.signUpTitle} subtitle={t.auth.signUpSubtitle} />
+      <div className="px-6 pb-5">
+        <p className="mb-2 text-sm font-medium text-ink-700">{t.auth.accountType}</p>
+        <Tabs
+          value={accountType}
+          onChange={setAccountType}
+          items={[
+            { value: "student", label: t.auth.asStudent },
+            { value: "parent", label: t.auth.asParent },
+          ]}
+        />
+      </div>
+      {accountType === "parent" ? (
+        <div className="px-6">
+          <ParentSignUpForm next={next} />
+        </div>
+      ) : (
       <motion.form
         noValidate
         onSubmit={onSubmit}
@@ -136,6 +157,13 @@ export function SignUpScreen({ searchParams }: { searchParams: Promise<{ next?: 
               ))}
             </Select>
           </div>,
+          <Select key="b" name="birthYear" label={t.auth.birthYear} defaultValue={String(year - 20)} error={err("birthYear")} shakeKey={attempt}>
+            {Array.from({ length: 70 }, (_, i) => year - 14 - i).map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </Select>,
         ].map((field, i) => (
           <motion.div key={i} variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}>
             {field}
@@ -154,7 +182,12 @@ export function SignUpScreen({ searchParams }: { searchParams: Promise<{ next?: 
             onChange={(e) => setAcceptTerms(e.target.checked)}
             className="mt-0.5 size-5 shrink-0 rounded-md accent-brand-600"
           />
-          <span className={errors.acceptTerms ? "text-coral-600" : undefined}>{t.auth.acceptTerms}</span>
+          <span className={errors.acceptTerms ? "text-coral-600" : undefined}>
+            {t.auth.acceptTerms} ·{" "}
+            <AppLink href="/legal/terms" target="_blank" className="font-semibold text-brand-600 underline">
+              {t.auth.readTerms}
+            </AppLink>
+          </span>
         </motion.label>
 
         <Button type="submit" block size="lg" loading={loading}>
@@ -167,7 +200,11 @@ export function SignUpScreen({ searchParams }: { searchParams: Promise<{ next?: 
           </AppLink>
         </p>
       </motion.form>
+      )}
       <div className="px-6">
+        <AppLink href="/become-tutor" className="mt-6 flex items-center justify-center gap-2 rounded-2xl border border-dashed border-brand-200 p-3 text-sm font-semibold text-brand-700">
+          <Presentation className="size-4" /> {t.auth.teachCta}
+        </AppLink>
         <DemoQuickAccess next={next} />
       </div>
     </Screen>
@@ -204,6 +241,7 @@ export function SignInScreen({ searchParams }: { searchParams: Promise<{ next?: 
       router.push(href(next === "/" ? home : next));
     } catch (error) {
       if (isServiceError(error, "invalid_credentials")) setErrors({ _form: "invalid" });
+      else if (isServiceError(error, "account_suspended")) setErrors({ _form: "suspended" });
       else toast.error(t.common.somethingWrong);
     } finally {
       setLoading(false);
@@ -225,9 +263,12 @@ export function SignInScreen({ searchParams }: { searchParams: Promise<{ next?: 
             animate={{ opacity: 1, x: [0, -6, 6, -3, 3, 0] }}
             className="rounded-2xl bg-coral-100 px-4 py-3 text-sm font-medium text-coral-600"
           >
-            {t.auth.invalidCredentials}
+            {errors._form === "suspended" ? t.auth.suspended : t.auth.invalidCredentials}
           </motion.p>
         )}
+        <AppLink href="/auth/forgot-password" className="block text-end text-sm font-semibold text-brand-600">
+          {t.auth.forgotPassword}
+        </AppLink>
         <Button type="submit" block size="lg" loading={loading}>
           {loading ? t.auth.signingIn : t.auth.signIn}
         </Button>

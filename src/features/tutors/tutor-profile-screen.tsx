@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { Award, Clock, GraduationCap, Languages, Lock, MapPin, MessageCircle, Share2, UserX, Video, Zap } from "lucide-react";
+import { Award, Clock, Flag, GraduationCap, Languages, Lock, MapPin, MessageCircle, Share2, UserX, Video, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { use, useState } from "react";
 import { AppLink } from "@/components/layout/app-link";
@@ -19,6 +19,7 @@ import { useAvailableSlots, useOpenConversation, useTutor, useTutorReviews } fro
 import { useSession } from "@/hooks/use-session";
 import { useI18n } from "@/i18n/i18n-provider";
 import { cn } from "@/lib/cn";
+import { ReportSheet, type ReportTarget } from "@/features/moderation/report-sheet";
 import { useFavoriteToggle, useSubjectMap, VerifiedBadge } from "./shared";
 
 function ProfileSkeleton() {
@@ -314,6 +315,23 @@ function Reviews({ tutor }: { tutor: TutorProfile }) {
   );
 }
 
+function ReportProfileLink({ tutorUserId }: { tutorUserId: string }) {
+  const { t } = useI18n();
+  const [target, setTarget] = useState<ReportTarget | null>(null);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setTarget({ kind: "report", targetUserId: tutorUserId })}
+        className="mx-auto mt-6 flex items-center gap-1.5 text-[13px] font-medium text-ink-400 hover:text-coral-600"
+      >
+        <Flag className="size-3.5" /> {t.report.reportProfile}
+      </button>
+      <ReportSheet target={target} onClose={() => setTarget(null)} />
+    </>
+  );
+}
+
 /** Opens (or creates) the pre-booking conversation with this tutor. */
 function useAskTutor(tutor: TutorProfile) {
   const { t, href } = useI18n();
@@ -438,6 +456,10 @@ export function TutorProfileScreen({ params }: { params: Promise<{ id: string }>
             {session?.tutorId !== tutor.id && role !== "tutor" && <AskFirst tutor={tutor} />}
             <AvailabilityPreview tutor={tutor} subjectId={subjectId} />
             <Reviews tutor={tutor} />
+            {!tutor.published && (
+              <p className="mx-5 mt-6 rounded-2xl bg-accent-100 p-3 text-center text-[13px] font-medium text-accent-600">{t.onboarding.hiddenProfile}</p>
+            )}
+            {session && session.tutorId !== tutor.id && <ReportProfileLink tutorUserId={tutor.userId} />}
             <p className="flex items-center justify-center gap-1.5 px-5 pt-6 text-center text-[12px] text-ink-500">
               <Clock className="size-3.5" aria-hidden />
               {tutor.instantBook ? t.tutor.instantHint : t.tutor.requestHint}

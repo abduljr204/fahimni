@@ -6,11 +6,12 @@ import type { Booking, BookingDetails } from "@/domain/types";
 import { createBookingSchema } from "@/domain/validation";
 import type { BookingService } from "../contracts";
 import { parseInput, ServiceError } from "../errors";
-import { bookingRole, isUnlocked, learnerSide, requireActsForStudent } from "./access";
+import { bookingRole, isUnlocked, learnerSide, requireActive, requireActsForStudent } from "./access";
 import { clone, latency, mockDb, newId } from "./mock-db";
 import { postSystemMessage } from "./mock-messaging";
 import { pushNotification } from "./mock-notifications";
 import { refundBookingPayments, relockIfNeeded } from "./mock-payments";
+import { rateLimit } from "./rate-limit";
 import { DEMO_MEETING_PLACE, type MockState } from "./seed";
 import { scheduleTutorResponse } from "./simulator";
 
@@ -79,9 +80,11 @@ export const mockBookingService: BookingService = {
       if (!actor) throw new ServiceError("unauthorized");
       const studentId = input.forStudentId ?? actorUserId;
       requireActsForStudent(s, actorUserId, studentId);
+      requireActive(s, actorUserId);
+      rateLimit("booking", actorUserId);
       if (s.users.find((u) => u.id === studentId)?.role !== "student") throw new ServiceError("forbidden");
       const tutor = s.tutors.find((t) => t.id === input.tutorId);
-      if (!tutor) throw new ServiceError("not_found");
+      if (!tutor || !tutor.published) throw new ServiceError("not_found");
       if (!tutor.subjectIds.includes(input.subjectId) || !tutor.modes.includes(input.mode)) {
         throw new ServiceError("validation");
       }

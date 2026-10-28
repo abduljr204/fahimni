@@ -1,14 +1,17 @@
 "use client";
 
 import { Suspense, useCallback, type ReactNode } from "react";
-import { ServerCrash } from "lucide-react";
+import { ServerCrash, ShieldX } from "lucide-react";
 import { appConfig } from "@/config/app-config";
 import type { AppNotification } from "@/domain/types";
 import { DemoBanner } from "@/features/demo/demo-banner";
 import { DesktopGuide } from "@/features/demo/desktop-guide";
-import { useRealtimeSync } from "@/hooks/use-data";
+import { DEFAULT_PREFERENCES, wantsDelivery } from "@/domain/notifications";
+import { usePreferences, useRealtimeSync } from "@/hooks/use-data";
+import { useSession } from "@/hooks/use-session";
 import { useI18n } from "@/i18n/i18n-provider";
 import { productionServicesReady } from "@/services/supabase";
+import { Button } from "../ui/button";
 import { EmptyState } from "../ui/empty-state";
 import { useToast } from "../ui/toast";
 import { BottomNav } from "./bottom-nav";
@@ -18,20 +21,52 @@ function RealtimeToasts() {
   const { t, l, fmt } = useI18n();
   const toast = useToast();
   const path = useAppPath();
+  const { data: prefs } = usePreferences();
 
   const onNotification = useCallback(
     (n: AppNotification) => {
       // Don't toast a chat message the user is already reading.
       if (n.type === "new_message" && path === `/messages/${n.data.conversationId}`) return;
       const text = fmt(t.notifications.types[n.type], { name: l(n.data.name), subject: l(n.data.subject) });
+      // While the app is in the background, show a real device notification if the user allowed it.
+      // Production delivers these with Web Push from the server, so they arrive even when the app is closed.
+      if (
+        typeof Notification !== "undefined" &&
+        Notification.permission === "granted" &&
+        document.visibilityState === "hidden" &&
+        wantsDelivery(prefs ?? DEFAULT_PREFERENCES, "push", n.type)
+      ) {
+        new Notification(t.common.appName, { body: text, tag: n.id, icon: "/icon.svg" });
+      }
       const tone = n.type === "booking_declined" || n.type === "booking_cancelled" ? "info" : "success";
       toast.show({ tone, title: text, description: appConfig.isPrototype ? t.demo.simulated : undefined });
     },
-    [t, l, fmt, toast, path],
+    [t, l, fmt, toast, path, prefs],
   );
 
   useRealtimeSync(onNotification);
   return null;
+}
+
+/** Suspended accounts can't use the app; they can only sign out. */
+function SuspendedNotice() {
+  const { t } = useI18n();
+  const { session, signOut } = useSession();
+  if (!session?.user.suspendedAt) return null;
+  return (
+    <div className="fixed inset-0 z-[80] grid place-items-center bg-canvas p-6">
+      <EmptyState
+        icon={<ShieldX />}
+        title={t.errors.accountSuspended}
+        body={t.auth.suspended}
+        action={
+          <Button variant="outline" onClick={() => void signOut()}>
+            {t.profile.signOut}
+          </Button>
+        }
+      />
+    </div>
+  );
 }
 
 function ProductionNotConfigured() {
@@ -76,6 +111,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Suspense fallback={null}>
         <RealtimeToasts />
       </Suspense>
+      <SuspendedNotice />
     </>
   );
 }

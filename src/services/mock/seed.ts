@@ -10,6 +10,10 @@ import type {
   LessonProposal,
   LocalizedText,
   Message,
+  NotificationPreferences,
+  OutboundMessage,
+  Report,
+  TutorApplication,
   Payment,
   PlatformSettings,
   Review,
@@ -57,9 +61,22 @@ export interface MockState {
   messages: Message[];
   notifications: AppNotification[];
   profileViews: Record<string, number>;
+  applications: TutorApplication[];
+  reports: Report[];
+  /** Simulated email/SMS/push deliveries (the "delivery log"). */
+  outbox: OutboundMessage[];
+  /** Missing entries mean the defaults in `domain/notifications.ts`. */
+  preferences: Record<string, NotificationPreferences>;
+  passwordResets: { token: string; userId: string; expiresAt: string; usedAt?: string }[];
 }
 
-export const MOCK_STATE_VERSION = 6;
+export const MOCK_STATE_VERSION = 7;
+
+/** A small labelled placeholder image standing in for an uploaded document in the demo. */
+function demoDocument(label: string, hue: number): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="380"><rect width="600" height="380" rx="24" fill="hsl(${hue},45%,92%)"/><rect x="30" y="30" width="140" height="170" rx="12" fill="hsl(${hue},40%,75%)"/><text x="200" y="90" font-family="sans-serif" font-size="30" font-weight="bold" fill="#222">${label}</text><text x="200" y="140" font-family="sans-serif" font-size="22" fill="#555">DEMO DOCUMENT</text><rect x="200" y="170" width="340" height="14" rx="7" fill="hsl(${hue},30%,80%)"/><rect x="200" y="200" width="280" height="14" rx="7" fill="hsl(${hue},30%,80%)"/></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
 
 const money = (major: number) => toMoney(major, brand.currency);
 
@@ -560,6 +577,7 @@ export function createSeed(now = new Date()): MockState {
       university: { ar: "كلية العلوم — جامعة تجريبية", en: "Faculty of Sciences — Demo University" },
       major: { ar: "علوم الحاسوب", en: "Computer Science" },
       studyYear: 2,
+      birthYear: now.getFullYear() - 20,
       createdAt: created,
       isDemo: true,
     },
@@ -570,6 +588,7 @@ export function createSeed(now = new Date()): MockState {
       major: { ar: "القسم العلمي — السنة الثالثة", en: "Science stream — final year" },
       studyYear: 3,
       level: "secondary",
+      birthYear: now.getFullYear() - 17,
       guardianUserId: "u-fatima",
       createdAt: created,
       isDemo: true,
@@ -580,6 +599,7 @@ export function createSeed(now = new Date()): MockState {
       university: { ar: "جامعة تجريبية", en: "Demo University" },
       major: { ar: "الرياضيات", en: "Mathematics" },
       studyYear: 1 + (i % 3),
+      birthYear: now.getFullYear() - 19 - (i % 3),
       createdAt: created,
       isDemo: true,
     })),
@@ -607,6 +627,7 @@ export function createSeed(now = new Date()): MockState {
     responseTimeMinutes: t.response,
     verification: t.verification,
     instantBook: t.instantBook,
+    published: true,
     availability: t.availability,
     timezone: "Africa/Tripoli",
     createdAt: created,
@@ -797,6 +818,91 @@ export function createSeed(now = new Date()): MockState {
     { id: "n-6", userId: "u-youssef", type: "review_received", data: { name: extraStudents[3].name, subject: subjects[0].name }, createdAt: iso(ago(60 * 20)), readAt: iso(ago(60 * 19)), isDemo: true },
   ];
 
+  // A new tutor waiting for verification, so the admin queue has something to review.
+  users.push({
+    id: "u-khaled",
+    email: "khaled@demo.fahimni",
+    password: DEMO_PASSWORD,
+    role: "tutor",
+    displayName: { ar: "خالد الشريف", en: "Khaled Al-Sharif" },
+    avatarHue: 180,
+    preferredLocale: "ar",
+    createdAt: iso(ago(60 * 26)),
+    isDemo: true,
+  });
+  tutors.push({
+    id: "t-khaled",
+    userId: "u-khaled",
+    displayName: { ar: "خالد الشريف", en: "Khaled Al-Sharif" },
+    avatarHue: 180,
+    headline: { ar: "مهندس كهرباء — الإلكترونيات والدوائر", en: "Electrical engineer — Electronics & circuits" },
+    bio: {
+      ar: "تخرجت من كلية الهندسة وأعمل في صيانة الشبكات. أحب تبسيط الدوائر الكهربائية بالأمثلة العملية.",
+      en: "Engineering graduate working in network maintenance. I like making circuits simple with practical examples.",
+    },
+    university: { ar: "كلية الهندسة — جامعة تجريبية", en: "Faculty of Engineering — Demo University" },
+    city: { ar: "مصراتة", en: "Misrata" },
+    subjectIds: ["s-electronics", "s-mechanics"],
+    languages: ["ar", "libyan", "en"],
+    modes: ["online", "in_person"],
+    qualifications: [{ ar: "بكالوريوس هندسة كهربائية", en: "BSc in Electrical Engineering" }],
+    gradeLevels: ["university_early"],
+    hourlyRate: money(35),
+    yearsExperience: 2,
+    rating: 0,
+    reviewCount: 0,
+    lessonsCompleted: 0,
+    responseTimeMinutes: 60,
+    verification: "pending",
+    instantBook: false,
+    published: false,
+    availability: AVAILABILITY.evenings,
+    timezone: "Africa/Tripoli",
+    createdAt: iso(ago(60 * 26)),
+    isDemo: true,
+  });
+  const applications: TutorApplication[] = [
+    {
+      id: "app-khaled",
+      userId: "u-khaled",
+      tutorId: "t-khaled",
+      status: "pending",
+      documents: [
+        { kind: "identity", file: { id: "doc-k1", name: "national-id.svg", mimeType: "image/svg+xml", sizeBytes: 2400, url: demoDocument("National ID", 200) } },
+        { kind: "qualification", file: { id: "doc-k2", name: "degree-certificate.svg", mimeType: "image/svg+xml", sizeBytes: 2600, url: demoDocument("BSc Certificate", 40) } },
+      ],
+      createdAt: iso(ago(60 * 26)),
+      isDemo: true,
+    },
+  ];
+
+  const reports: Report[] = [
+    {
+      id: "rep-auto-1",
+      kind: "report",
+      targetUserId: "u-mehdi",
+      reason: "off_platform",
+      details: "Automatic flag: 3 attempts to share contact details before booking within 24 hours.",
+      evidence: "call me 0923456781 … add me on whatsapp … my insta is @mehdi.s",
+      auto: true,
+      status: "open",
+      createdAt: iso(ago(60 * 5)),
+      isDemo: true,
+    },
+    {
+      id: "rep-dispute-1",
+      kind: "dispute",
+      reporterId: "u-sara",
+      targetUserId: "u-salma",
+      reason: "quality",
+      details: "The lesson ended 20 minutes early and we didn't cover the cell cycle as planned.",
+      bookingId: "b-3",
+      status: "open",
+      createdAt: iso(ago(60 * 30)),
+      isDemo: true,
+    },
+  ];
+
   return {
     version: MOCK_STATE_VERSION,
     seededAt: iso(now),
@@ -818,5 +924,10 @@ export function createSeed(now = new Date()): MockState {
     messages,
     notifications,
     profileViews: { "t-youssef": 342 },
+    applications,
+    reports,
+    outbox: [],
+    preferences: {},
+    passwordResets: [],
   };
 }

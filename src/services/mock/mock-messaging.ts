@@ -9,12 +9,15 @@ import {
   isConversationParticipant,
   isUnlocked,
   learnerSide,
+  requireActive,
   requireActsForStudent,
   requireConversationParticipant,
 } from "./access";
 import { EventBus } from "./event-bus";
 import { clone, latency, mockDb, newId } from "./mock-db";
+import { recordBlockedAttempt } from "./mock-moderation";
 import { pushNotification } from "./mock-notifications";
+import { rateLimit } from "./rate-limit";
 import { DEMO_TUTOR_EMAIL, type MockState } from "./seed";
 
 const bus = new EventBus<MessagingEvent>();
@@ -230,7 +233,7 @@ export const mockMessagingService: MessagingService = {
       const learner = studentUserId ?? actorUserId;
       requireActsForStudent(s, actorUserId, learner);
       const tutor = s.tutors.find((t) => t.id === tutorId);
-      if (!tutor) throw new ServiceError("not_found");
+      if (!tutor || !tutor.published) throw new ServiceError("not_found");
       if (learnerSide(s, learner).includes(tutor.userId)) throw new ServiceError("validation");
       return summarize(s, ensureConversation(s, learner, tutorId), actorUserId);
     });
@@ -239,14 +242,21 @@ export const mockMessagingService: MessagingService = {
   async send(senderId, raw) {
     const input = parseInput(sendMessageSchema, raw);
     await latency(150, 300);
+    // Checks run before writing anything, so a refused message leaves no trace in the store.
+    const c = requireConversationParticipant(mockDb.data, senderId, input.conversationId);
+    requireActive(mockDb.data, senderId);
+    rateLimit("message", senderId);
+    // Authoritative check: the composer warns first, but the service is what enforces it.
+    if (!isUnlocked(mockDb.data, c.studentId, c.tutorId)) {
+      const text = [input.body, ...input.attachments.map((a) => a.name)].join("\n");
+      const findings = detectContactDetails(text);
+      if (findings.length) {
+        recordBlockedAttempt(senderId, text);
+        throw new ServiceError("contact_blocked", undefined, undefined, findings);
+      }
+    }
     const message = mockDb.mutate((s) => {
       const c = requireConversationParticipant(s, senderId, input.conversationId);
-      // Authoritative check: the composer warns first, but the service is what enforces it.
-      if (!isUnlocked(s, c.studentId, c.tutorId)) {
-        const text = [input.body, ...input.attachments.map((a) => a.name)].join("\n");
-        const findings = detectContactDetails(text);
-        if (findings.length) throw new ServiceError("contact_blocked", undefined, undefined, findings);
-      }
       const attachments: Attachment[] = input.attachments.map((a) => ({ ...a, id: newId("att") }));
       return clone(pushMessage(s, c, senderId, input.body, { attachments }));
     });

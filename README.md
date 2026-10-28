@@ -49,7 +49,12 @@ On a laptop, a **Demo guide** panel next to the app links to each journey.
 | Language | Profile → Language → English / العربية (full RTL ↔ LTR) |
 | Ask → proposal → pay → classroom | As Sara: Youssef's profile → Ask a question (attach an exercise). Try sending a phone number to see the warning. Switch to tutor → open Sara's chat → Send lesson proposal. Switch back → Review and pay → chat unlocks → Lessons → Demo: enter now. Then as the tutor, enter the same classroom from the dashboard |
 | Parent account | Profile → Try the parent account: lessons and messages for a younger student |
-| Admin | Profile → Open admin dashboard: commission, price limits, payment options, classroom window |
+| Admin | Profile → Open admin dashboard: commission, price limits, payment options, classroom window; Verification and Reports tabs |
+| Become a tutor | Profile → Apply as a tutor (4 steps, upload any image as documents) → switch to admin → Verification → Approve |
+| Parent sign-up | Sign up → Parent: your details + your child's |
+| Settings | Profile → Account settings: details, notifications, delivery log, password, delete account |
+| Forgot password | Sign in → Forgot password? → open the simulated email's link |
+| Report & dispute | Flag icons in chat and on profiles; past lessons → flag to report a problem; handle them in Admin → Reports |
 | Reset | Tap the dark demo banner → Reset demo data |
 
 Demo accounts (password `demo1234`): `sara@demo.fahimni` (student), `youssef@demo.fahimni` (tutor),
@@ -57,7 +62,8 @@ Demo accounts (password `demo1234`): `sara@demo.fahimni` (student), `youssef@dem
 
 Pre-booking chat, proposals, payments and the video classroom are described in
 [docs/PRE_BOOKING_AND_CLASSROOM.md](docs/PRE_BOOKING_AND_CLASSROOM.md), including what is
-simulated and what needs real services before launch.
+simulated and what needs real services before launch. Accounts, tutor verification,
+notifications and moderation are covered in [docs/ACCOUNTS_AND_TRUST.md](docs/ACCOUNTS_AND_TRUST.md).
 
 Bookings with Youssef wait for his approval, so you can switch to tutor mode and accept
 them yourself. Other tutors either confirm instantly or auto-accept after a few seconds.

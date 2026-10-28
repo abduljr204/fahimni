@@ -17,6 +17,10 @@ export type ServiceErrorCode =
   | "classroom_closed"
   /** The proposal is no longer pending (accepted, declined, withdrawn or expired). */
   | "proposal_unavailable"
+  /** The account was suspended by an admin. */
+  | "account_suspended"
+  /** Too many attempts in a short time (spam protection). */
+  | "rate_limited"
   | "not_configured"
   | "demo_data_in_production";
 

@@ -2,7 +2,7 @@ import { isPaidAndConfirmed } from "@/domain/access";
 import type { Money } from "@/domain/types";
 import type { PaymentService } from "../contracts";
 import { ServiceError } from "../errors";
-import { isUnlocked, requireActsForStudent } from "./access";
+import { isUnlocked, requireActive, requireActsForStudent } from "./access";
 import { latency, mockDb, newId } from "./mock-db";
 import { postSystemMessage } from "./mock-messaging";
 import type { MockState } from "./seed";
@@ -22,6 +22,7 @@ export const mockPaymentService: PaymentService = {
       if (!booking) throw new ServiceError("not_found");
       // The student pays, or their parent for a managed student.
       requireActsForStudent(s, actorUserId, booking.studentId);
+      requireActive(s, actorUserId);
       if (booking.status === "declined" || booking.status === "cancelled") throw new ServiceError("validation");
 
       const existing = s.payments.find((p) => p.bookingId === bookingId && p.status === "succeeded");

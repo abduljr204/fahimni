@@ -28,6 +28,9 @@ export function createSupabaseServices(): AppServices {
   return {
     mode: "production",
     auth: service as AppServices["auth"],
+    account: service as AppServices["account"],
+    onboarding: service as AppServices["onboarding"],
+    moderation: service as AppServices["moderation"],
     tutors: service as AppServices["tutors"],
     subjects: service as AppServices["subjects"],
     reviews: service as AppServices["reviews"],

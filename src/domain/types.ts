@@ -41,6 +41,14 @@ export interface UserAccount extends BaseEntity {
   avatarHue: number;
   avatarUrl?: string;
   preferredLocale: Locale;
+  /**
+   * Private: used only for SMS notifications, never shown to other users. Production keeps it
+   * in a table only the owner can read.
+   */
+  phone?: string;
+  /** Set by an admin; suspended accounts can't sign in, message or book. */
+  suspendedAt?: ISODateTime;
+  suspensionReason?: string;
 }
 
 export interface StudentProfile extends BaseEntity {
@@ -49,6 +57,8 @@ export interface StudentProfile extends BaseEntity {
   major: LocalizedText;
   studyYear: number;
   level?: GradeLevel;
+  /** Used for the age check: students under 18 are managed by a parent. */
+  birthYear?: number;
   /**
    * Set for younger students: this parent books, pays and messages on their behalf,
    * and may join their classroom.
@@ -98,7 +108,7 @@ export interface Subject {
 export type LessonMode = "online" | "in_person";
 export type GradeLevel = "secondary" | "university_early" | "university_advanced" | "postgraduate";
 export type SpokenLanguage = "ar" | "libyan" | "fr" | "en" | "amazigh";
-export type VerificationStatus = "verified" | "pending" | "unverified";
+export type VerificationStatus = "verified" | "pending" | "unverified" | "rejected";
 
 /** A weekly recurring window in the tutor's local time, e.g. Monday 17:00–21:00. */
 export interface AvailabilityWindow {
@@ -132,6 +142,8 @@ export interface TutorProfile extends BaseEntity {
   verification: VerificationStatus;
   /** When true, bookings are confirmed immediately; otherwise the tutor must accept. */
   instantBook: boolean;
+  /** Only published profiles appear in search. New tutors are published once an admin approves them. */
+  published: boolean;
   availability: AvailabilityWindow[];
   timezone: string;
 }
@@ -215,6 +227,8 @@ export interface Booking extends BaseEntity {
   /** State of the in-app part of the payment (`pricing.dueInApp`). */
   paymentStatus: PaymentStatus;
   lessonStatus: LessonStatus;
+  /** Reminders already sent for this lesson. */
+  remindersSent?: ("24h" | "1h")[];
   /** Who made the booking: the student, or their parent. */
   bookedBy: ID;
   /** Set when the booking came from a tutor's lesson proposal. */
@@ -404,6 +418,10 @@ export type NotificationType =
   | "proposal_received"
   | "proposal_accepted"
   | "proposal_declined"
+  | "application_approved"
+  | "application_rejected"
+  | "report_resolved"
+  | "account_warning"
   | "welcome";
 
 export interface AppNotification extends BaseEntity {
@@ -453,4 +471,90 @@ export interface AdminOverview {
   /** Paid by students to tutors directly for in-person lessons. */
   paidInCash: Money;
   recentPayments: AdminPaymentRow[];
+}
+
+// ─── Tutor onboarding ───────────────────────────────────────────────────────
+
+export type ApplicationStatus = "pending" | "approved" | "rejected";
+
+export interface TutorDocument {
+  kind: "identity" | "qualification";
+  file: Attachment;
+}
+
+/** A new tutor's request to teach. The profile stays hidden until an admin approves it. */
+export interface TutorApplication extends BaseEntity {
+  userId: ID;
+  tutorId: ID;
+  documents: TutorDocument[];
+  status: ApplicationStatus;
+  reviewedAt?: ISODateTime;
+  reviewedBy?: ID;
+  /** Shown to the applicant when rejected. */
+  note?: string;
+}
+
+export interface ApplicationDetails extends TutorApplication {
+  tutor: TutorProfile;
+  email: string;
+}
+
+// ─── Notifications outside the app ──────────────────────────────────────────
+
+export type NotificationChannel = "email" | "sms" | "push";
+export type NotificationCategory = "lessons" | "messages" | "account";
+
+/** Which categories reach the user on each channel. In-app notifications are always on. */
+export type NotificationPreferences = Record<NotificationChannel, Record<NotificationCategory, boolean>>;
+
+/**
+ * A notification sent (or, in the prototype, simulated) outside the app. Production keeps
+ * this as a delivery log written by the server.
+ */
+export interface OutboundMessage extends BaseEntity {
+  userId: ID;
+  channel: NotificationChannel;
+  /** Email address, phone number or "this device". */
+  to: string;
+  type: NotificationType | "password_reset";
+  data: AppNotification["data"] & { link?: string };
+  status: "simulated" | "sent" | "failed";
+}
+
+// ─── Trust & safety ─────────────────────────────────────────────────────────
+
+export type ReportReason = "spam" | "harassment" | "inappropriate" | "off_platform" | "fake_profile" | "safety" | "other";
+export type DisputeReason = "no_show" | "quality" | "billing" | "other";
+export type ReportStatus = "open" | "resolved" | "dismissed";
+export type ModerationAction = "none" | "warning" | "suspend" | "unpublish" | "refund";
+
+/**
+ * A report about a message, user or tutor profile, or (`kind: "dispute"`) a problem with a
+ * paid lesson that may end in a refund.
+ */
+export interface Report extends BaseEntity {
+  kind: "report" | "dispute";
+  /** Absent for reports raised automatically by the system. */
+  reporterId?: ID;
+  targetUserId: ID;
+  reason: ReportReason | DisputeReason;
+  details: string;
+  messageId?: ID;
+  conversationId?: ID;
+  bookingId?: ID;
+  /** Copy of the reported message, kept even if the conversation changes. */
+  evidence?: string;
+  auto?: boolean;
+  status: ReportStatus;
+  resolution?: { action: ModerationAction; note: string; refund?: Money; by: ID; at: ISODateTime };
+}
+
+export interface ReportDetails extends Report {
+  reporterName?: LocalizedText;
+  targetName: LocalizedText;
+  targetRole: UserRole;
+  targetSuspended: boolean;
+  booking?: Pick<Booking, "id" | "startsAt" | "durationMinutes" | "mode" | "status" | "paymentStatus" | "pricing"> & {
+    subject: LocalizedText;
+  };
 }

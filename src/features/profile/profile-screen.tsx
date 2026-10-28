@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Bell, FlaskConical, Heart, Info, Languages, LayoutDashboard, GraduationCap, LogOut, RotateCcw, ShieldCheck, Users } from "lucide-react";
+import { Bell, FlaskConical, Heart, Info, Languages, LayoutDashboard, GraduationCap, LogOut, Presentation, RotateCcw, Settings, ShieldCheck, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { AppLink } from "@/components/layout/app-link";
@@ -175,6 +175,12 @@ export function ProfileScreen() {
             </div>
             <LanguageSwitch />
           </div>
+          {session && (
+            <Row icon={<Settings className="size-5" />} label={t.profile.accountSettings} href="/settings" />
+          )}
+          {role !== "tutor" && role !== "admin" && (
+            <Row icon={<Presentation className="size-5" />} label={t.profile.becomeTutor} href="/become-tutor" />
+          )}
           {session && (
             <Row icon={<Bell className="size-5" />} label={t.profile.notifications} href="/notifications">
               <span className="flex items-center gap-2">

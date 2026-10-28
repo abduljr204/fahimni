@@ -5,10 +5,11 @@ import type { Booking, LessonProposal, ProposalDetails } from "@/domain/types";
 import { acceptProposalSchema, createProposalSchema, type CreateProposalInput } from "@/domain/validation";
 import type { ProposalService } from "../contracts";
 import { parseInput, ServiceError } from "../errors";
-import { isUnlocked, learnerSide, requireActsForStudent, requireConversationParticipant } from "./access";
+import { isUnlocked, learnerSide, requireActive, requireActsForStudent, requireConversationParticipant } from "./access";
 import { clone, latency, mockDb, newId } from "./mock-db";
 import { pushMessage } from "./mock-messaging";
 import { pushNotification } from "./mock-notifications";
+import { rateLimit } from "./rate-limit";
 import { DEMO_MEETING_PLACE, type MockState } from "./seed";
 
 /** Unanswered proposals lapse after this long, or when the lesson gets too close to book. */
@@ -143,6 +144,8 @@ export const mockProposalService: ProposalService = {
   async create(actorUserId, raw) {
     const input = parseInput(createProposalSchema, raw);
     await latency(400, 700);
+    requireActive(mockDb.data, actorUserId);
+    rateLimit("proposal", actorUserId);
     return mockDb.mutate((s) => clone(insertProposal(s, actorUserId, input)));
   },
 

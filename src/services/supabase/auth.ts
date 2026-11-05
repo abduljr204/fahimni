@@ -7,8 +7,10 @@ import { call, supabase } from "./client";
 
 const listeners = new Set<(session: Session | null) => void>();
 let lastUserId: string | null | undefined;
+let emitCount = 0;
 
 export function emitSession(session: Session | null): void {
+  emitCount++;
   lastUserId = session?.user.id ?? null;
   listeners.forEach((l) => l(session));
 }
@@ -117,7 +119,12 @@ export const supabaseAuthService: AuthService = {
       if (event === "INITIAL_SESSION" || userId === lastUserId) return;
       // Supabase holds a lock during this callback, so database calls must wait until it ends.
       setTimeout(() => {
-        loadSession().then(emitSession, () => emitSession(null));
+        // A slow answer must not replace a newer session, such as the one a tutor gets on applying.
+        const startedAt = emitCount;
+        const emitIfLatest = (session: Session | null) => {
+          if (emitCount === startedAt) emitSession(session);
+        };
+        loadSession().then(emitIfLatest, () => emitIfLatest(null));
       }, 0);
     });
     return () => {

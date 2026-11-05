@@ -3,7 +3,7 @@
 The app has two modes, chosen by `NEXT_PUBLIC_APP_MODE`:
 
 - `prototype` (the default): demo data in the browser, nothing leaves the device.
-- `production`: real accounts and data in Supabase, real video through Daily.
+- `production`: real accounts and data in Supabase, real video through LiveKit or Daily.
 
 Payments are still simulated in both modes. See [What isn't connected yet](#what-isnt-connected-yet).
 
@@ -30,8 +30,12 @@ Set these in `.env.local`, and in Vercel under Project Settings → Environment 
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API | No |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase publishable key | No |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase secret key | **Yes** |
-| `VIDEO_PROVIDER_API_KEY` | Daily dashboard | **Yes** |
-| `VIDEO_PROVIDER_URL` | `https://<subdomain>.daily.co` | No |
+| `NEXT_PUBLIC_VIDEO_PROVIDER` | `livekit` or `daily` | No |
+| `LIVEKIT_URL` | LiveKit project settings, `wss://…livekit.cloud` | No |
+| `LIVEKIT_API_KEY` | LiveKit project settings | **Yes** |
+| `LIVEKIT_API_SECRET` | LiveKit project settings | **Yes** |
+| `VIDEO_PROVIDER_API_KEY` | Daily dashboard, only with `daily` | **Yes** |
+| `VIDEO_PROVIDER_URL` | `https://<subdomain>.daily.co`, only with `daily` | No |
 
 Never put a `NEXT_PUBLIC_` prefix on a secret: those values are built into the browser code.
 

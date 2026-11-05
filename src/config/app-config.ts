@@ -15,7 +15,7 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_APP_MODE: z.enum(APP_MODES).default("prototype"),
   NEXT_PUBLIC_SUPABASE_URL: z.url().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
-  NEXT_PUBLIC_VIDEO_PROVIDER: z.enum(["simulated", "daily"]).default("simulated"),
+  NEXT_PUBLIC_VIDEO_PROVIDER: z.enum(["simulated", "livekit", "daily"]).default("simulated"),
 });
 
 // Next.js inlines NEXT_PUBLIC_* values at build time, so they must be referenced literally.

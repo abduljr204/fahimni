@@ -31,7 +31,7 @@ async function liveTicket(request: Request, bookingId: string): Promise<NextResp
       displayName: ticket.me.displayName.ar ?? ticket.me.displayName.en ?? "Participant",
       expiresAt: new Date(ticket.expiresAt),
     });
-    return NextResponse.json({ ...ticket, ...issued, provider: "daily" });
+    return NextResponse.json({ ...ticket, ...issued });
   } catch (error) {
     return errorResponse(error);
   }

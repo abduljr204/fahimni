@@ -75,7 +75,7 @@ them yourself. Other tutors either confirm instantly or auto-accept after a few 
 | Data | Seeded demo data in the browser (localStorage) | Supabase Postgres |
 | Auth | Demo accounts | Supabase Auth |
 | Payments | Simulated, labelled | Simulated, labelled, until a gateway is connected |
-| Video | Simulated, labelled | Daily |
+| Video | Simulated, labelled | LiveKit or Daily |
 | Demo data | Labelled everywhere | Never shown; the app refuses to fall back to it |
 
 Setup, settings and what isn't connected yet are in

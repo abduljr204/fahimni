@@ -12,9 +12,9 @@ import { clone, latency, mockDb, newId } from "./mock-db";
  * entry window is open. The "token" is a random string that the simulated video provider
  * accepts; production issues a signed, short-lived token from the video service instead.
  */
-/** Swaps the simulated credential for a real one from the server when Daily is switched on. */
+/** Swaps the simulated credential for a real one from the server when a real provider is switched on. */
 async function withLiveToken(ticket: ClassroomTicket): Promise<ClassroomTicket> {
-  if (appConfig.video.provider !== "daily") return ticket;
+  if (appConfig.video.provider === "simulated") return ticket;
   const response = await fetch(`/api/classroom/${encodeURIComponent(ticket.bookingId)}/token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -25,8 +25,8 @@ async function withLiveToken(ticket: ClassroomTicket): Promise<ClassroomTicket> 
     }),
   });
   if (!response.ok) throw new ServiceError("not_configured", `Classroom token request failed (${response.status}).`);
-  const issued = (await response.json()) as { token: string; serverUrl: string; roomName: string; expiresAt: string };
-  return { ...ticket, ...issued, provider: "daily" };
+  const issued = (await response.json()) as { token: string; serverUrl: string; roomName: string; expiresAt: string; provider: string };
+  return { ...ticket, ...issued };
 }
 
 export const mockClassroomService: ClassroomService = {

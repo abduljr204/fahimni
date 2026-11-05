@@ -1,11 +1,13 @@
 import "server-only";
+import { AccessToken, TrackSource } from "livekit-server-sdk";
+import { appConfig } from "@/config/app-config";
 import { serverConfig } from "@/config/server-config";
 import type { ClassroomRole } from "@/domain/types";
 import { ServiceError } from "../errors";
 
 /**
- * Issues video-access tokens with Daily (https://docs.daily.co/reference/rest-api). The API
- * key stays on the server; browsers only ever receive a short-lived token for one room.
+ * Issues video-access tokens with the configured provider. The API keys stay on the server;
+ * browsers only ever receive a short-lived token for one lesson's room.
  *
  * Who may ask is decided by the caller, `POST /api/classroom/[bookingId]/token`, which in
  * production first calls the database function `classroom_ticket` as the signed-in user
@@ -42,7 +44,49 @@ async function ensureRoom(name: string, exp: number): Promise<void> {
   if (updated.status >= 300) throw new ServiceError("not_configured", `Daily refused the room (${updated.status}).`);
 }
 
-export async function issueVideoToken(request: VideoTokenRequest): Promise<{ token: string; serverUrl: string; roomName: string }> {
+export interface IssuedVideoToken {
+  token: string;
+  serverUrl: string;
+  roomName: string;
+  provider: "livekit" | "daily";
+}
+
+/** Signed locally, so it needs no network call. The room is created when the first person joins. */
+async function issueLiveKitToken(request: VideoTokenRequest): Promise<IssuedVideoToken> {
+  const { LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET } = serverConfig;
+  if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
+    throw new ServiceError("not_configured", "LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET must be set.");
+  }
+  const roomName = `lesson-${request.bookingId}`;
+  const ttl = Math.max(60, Math.floor((request.expiresAt.getTime() - Date.now()) / 1000));
+  const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity: request.userId, name: request.displayName, ttl });
+  token.addGrant({
+    room: roomName,
+    roomJoin: true,
+    canSubscribe: true,
+    canPublish: true,
+    canPublishData: true,
+    // Enforced by LiveKit, not just hidden in the UI: only the tutor can share a screen.
+    canPublishSources:
+      request.role === "tutor"
+        ? [TrackSource.CAMERA, TrackSource.MICROPHONE, TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO]
+        : [TrackSource.CAMERA, TrackSource.MICROPHONE],
+  });
+  return { token: await token.toJwt(), serverUrl: LIVEKIT_URL, roomName, provider: "livekit" };
+}
+
+export function issueVideoToken(request: VideoTokenRequest): Promise<IssuedVideoToken> {
+  switch (appConfig.video.provider) {
+    case "livekit":
+      return issueLiveKitToken(request);
+    case "daily":
+      return issueDailyToken(request);
+    default:
+      throw new ServiceError("not_configured", "NEXT_PUBLIC_VIDEO_PROVIDER must be livekit or daily for real calls.");
+  }
+}
+
+async function issueDailyToken(request: VideoTokenRequest): Promise<IssuedVideoToken> {
   if (!serverConfig.VIDEO_PROVIDER_API_KEY || !serverConfig.VIDEO_PROVIDER_URL) {
     throw new ServiceError("not_configured", "VIDEO_PROVIDER_API_KEY and VIDEO_PROVIDER_URL must be set.");
   }
@@ -62,5 +106,5 @@ export async function issueVideoToken(request: VideoTokenRequest): Promise<{ tok
     },
   });
   if (status >= 300 || typeof json.token !== "string") throw new ServiceError("not_configured", `Daily refused the token (${status}).`);
-  return { token: json.token, serverUrl: `${serverConfig.VIDEO_PROVIDER_URL.replace(/\/$/, "")}/${roomName}`, roomName };
+  return { token: json.token, serverUrl: `${serverConfig.VIDEO_PROVIDER_URL.replace(/\/$/, "")}/${roomName}`, roomName, provider: "daily" };
 }

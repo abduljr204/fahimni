@@ -8,6 +8,10 @@ import { z } from "zod";
 const serverEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   PAYMENT_PROVIDER_SECRET_KEY: z.string().min(1).optional(),
+  /** LiveKit: used only to sign per-lesson access tokens. */
+  LIVEKIT_URL: z.url().optional(),
+  LIVEKIT_API_KEY: z.string().min(1).optional(),
+  LIVEKIT_API_SECRET: z.string().min(1).optional(),
   /** Daily: used only to create private rooms and mint per-lesson access tokens. */
   VIDEO_PROVIDER_API_KEY: z.string().min(1).optional(),
   VIDEO_PROVIDER_URL: z.url().optional(),
@@ -26,6 +30,9 @@ const serverEnvSchema = z.object({
 export const serverConfig = serverEnvSchema.parse({
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || undefined,
   PAYMENT_PROVIDER_SECRET_KEY: process.env.PAYMENT_PROVIDER_SECRET_KEY || undefined,
+  LIVEKIT_URL: process.env.LIVEKIT_URL || undefined,
+  LIVEKIT_API_KEY: process.env.LIVEKIT_API_KEY || undefined,
+  LIVEKIT_API_SECRET: process.env.LIVEKIT_API_SECRET || undefined,
   VIDEO_PROVIDER_API_KEY: process.env.VIDEO_PROVIDER_API_KEY || undefined,
   VIDEO_PROVIDER_URL: process.env.VIDEO_PROVIDER_URL || undefined,
   VIDEO_TEST_MODE: process.env.VIDEO_TEST_MODE || undefined,

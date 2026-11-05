@@ -119,38 +119,41 @@ Booking status (`pending/confirmed/declined/cancelled`), payment status
   indicator, store files in a private bucket with a stated retention period, and let
   participants delete recordings.
 
-### Real video with Daily
+### Real video
 
-Real calls run through [Daily](https://www.daily.co). The classroom screen is ours; Daily
-carries the audio and video. The code is in `src/services/video/daily-provider.ts` (browser),
-`src/services/video/server.ts` (server, holds the key) and
+Real calls run through [LiveKit](https://livekit.com) or [Daily](https://www.daily.co), chosen by
+`NEXT_PUBLIC_VIDEO_PROVIDER`. The classroom screen is ours; the provider carries the audio and
+video. The code is in `src/services/video/livekit-provider.ts` and `daily-provider.ts` (browser),
+`src/services/video/server.ts` (server, holds the keys) and
 `src/app/api/classroom/[bookingId]/token/route.ts`.
 
-Setup, in `.env.local` (never commit it, and never prefix the key with `NEXT_PUBLIC_`):
+Setup, in `.env.local` (never commit it, and never prefix a key with `NEXT_PUBLIC_`):
 
 ```
-VIDEO_PROVIDER_API_KEY=<from dashboard.daily.co>
-VIDEO_PROVIDER_URL=https://<your-subdomain>.daily.co
-NEXT_PUBLIC_VIDEO_PROVIDER=daily
-VIDEO_TEST_MODE=true
+NEXT_PUBLIC_VIDEO_PROVIDER=livekit
+LIVEKIT_URL=wss://<your-project>.livekit.cloud
+LIVEKIT_API_KEY=<from the LiveKit project settings>
+LIVEKIT_API_SECRET=<from the LiveKit project settings>
 ```
 
-If joins fail with `account-missing-payment-method` in the browser console, the Daily account
-needs a payment method.
+LiveKit's free plan needs no card. Daily needs `VIDEO_PROVIDER_API_KEY` and `VIDEO_PROVIDER_URL`
+instead, and refuses joins with `account-missing-payment-method` until the account has a card.
+
+A LiveKit token's expiry only limits when someone can join, so a person already in the room isn't
+removed when the classroom window closes. Daily rooms do eject people at that point.
 
 In production mode the token route verifies the signed-in user and calls the database function
 `classroom_ticket` as them, so identity and role come from the database, and tokens expire when
 the classroom window closes.
 
-The two `NEXT_PUBLIC_VIDEO_PROVIDER` and `VIDEO_TEST_MODE` settings above only matter in prototype
-mode, which keeps accounts in the browser and so can't verify who is asking. There the route
-answers only under `npm run dev`. Seeded lessons (such as `b-1`) work across two browsers because
+`VIDEO_TEST_MODE=true` only matters in prototype mode, which keeps accounts in the browser and so
+can't verify who is asking. There the route answers only under `npm run dev` with that setting. Seeded lessons (such as `b-1`) work across two browsers because
 their ids match; lessons created in one browser don't exist in the other.
 
 File sharing during a call still needs storage wired to the classroom. Until `materialsEnabled` is
 set in the Daily provider, the Materials tab explains that it isn't available on real calls.
 
-Screen sharing is limited to the tutor by the Daily token itself, not just by the UI. Browsers
+Screen sharing is limited to the tutor by the video token itself, not just by the UI. Browsers
 allow camera access only on HTTPS or `localhost`, so testing from a phone needs an HTTPS URL.
 
 ## Production checklist

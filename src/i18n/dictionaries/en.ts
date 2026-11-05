@@ -715,6 +715,11 @@ const en: Dictionary = {
     simulateDrop: "Demo: simulate a connection drop",
     materialShared: "{name} shared {file}",
     lessonInfo: "Lesson info",
+    enableSound: "Tap to turn on sound",
+    remoteSharing: "{name} is sharing their screen",
+    materialsNeedStorage: "Sharing files in the lesson needs file storage, which isn't connected yet. For now, share your screen or send the file in Messages.",
+    unavailableTitle: "The classroom couldn't open",
+    connectionFailed: "We couldn't connect to the video service. Check your internet connection and try again.",
   },
   settings: {
     title: "Account settings",

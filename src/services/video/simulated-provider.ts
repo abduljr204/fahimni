@@ -31,6 +31,7 @@ class SimulatedCall implements VideoCall {
     this.state = {
       status: "connecting",
       simulated: true,
+      materialsEnabled: true,
       local: { micOn: true, camOn: true, mediaError: null, mediaReady: false },
       remote: others.map<RemoteParticipant>((p) => ({ ...p, connected: false, micOn: true, camOn: true, speaking: false, simulated: true })),
       chat: [],
@@ -47,6 +48,7 @@ class SimulatedCall implements VideoCall {
       // Rejoining keeps the chat and materials, like a real room would.
       this.set({
         status: "connecting",
+        connectionFailed: undefined,
         connectedAt: undefined,
         local: { ...this.state.local, mediaError: null, mediaReady: false },
         remote: this.state.remote.map((r) => ({ ...r, connected: false, speaking: false })),

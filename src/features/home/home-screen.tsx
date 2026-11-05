@@ -111,7 +111,7 @@ function Hero() {
       <div className="mt-2">
         <HeroIllustration
           lessonLabel={t.tutor.book}
-          tutorName={locale === "ar" ? "د. يوسف — التحليل" : "Dr. Youssef — Calculus"}
+          tutorName={locale === "ar" ? "أستاذك — التحليل" : "Your tutor — Calculus"}
         />
       </div>
     </section>

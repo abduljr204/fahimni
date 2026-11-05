@@ -95,7 +95,9 @@ export function ResetPasswordScreen({ searchParams }: { searchParams: Promise<{ 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const password = String(new FormData(e.currentTarget).get("password") ?? "");
-    const parsed = passwordResetSchema.safeParse({ token, password });
+    // Supabase's reset link carries its credentials in the URL fragment, not the query string.
+    const resetToken = token || window.location.hash.slice(1);
+    const parsed = passwordResetSchema.safeParse({ token: resetToken, password });
     if (!parsed.success) {
       const errs = fieldErrors(parsed.error);
       setError(messages[errs.password ?? errs.token] ?? t.validation.required);
@@ -104,7 +106,7 @@ export function ResetPasswordScreen({ searchParams }: { searchParams: Promise<{ 
     setError(undefined);
     setLoading(true);
     try {
-      await getServices().auth.resetPassword(token, password);
+      await getServices().auth.resetPassword(resetToken, password);
       setDone(true);
     } catch (err) {
       if (isServiceError(err, "validation")) setError(t.validation.resetLinkInvalid);

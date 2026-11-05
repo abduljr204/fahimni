@@ -10,7 +10,6 @@ import type {
   ConversationSummary,
   DaySlots,
   ID,
-  LessonMode,
   Message,
   LessonProposal,
   ManagedStudent,
@@ -24,11 +23,11 @@ import type {
   Review,
   Session,
   Subject,
-  SubjectCategory,
   TutorApplication,
   TutorProfile,
   TutorStats,
 } from "@/domain/types";
+import type { TutorSearchFilters, TutorSort } from "@/domain/tutor-search";
 import type {
   AcceptProposalInput,
   AccountProfileInput,
@@ -119,19 +118,7 @@ export interface ModerationService {
   resolve(actorUserId: ID, input: ResolveReportInput): Promise<Report>;
 }
 
-export type TutorSort = "recommended" | "rating" | "priceAsc" | "priceDesc";
-
-export interface TutorSearchFilters {
-  query?: string;
-  category?: SubjectCategory;
-  subjectId?: ID;
-  mode?: LessonMode;
-  maxHourlyRateMinor?: number;
-  minRating?: number;
-  instantOnly?: boolean;
-  verifiedOnly?: boolean;
-  sort?: TutorSort;
-}
+export type { TutorSearchFilters, TutorSort };
 
 export interface TutorRepository {
   search(filters: TutorSearchFilters): Promise<TutorProfile[]>;

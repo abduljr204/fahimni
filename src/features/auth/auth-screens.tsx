@@ -103,7 +103,7 @@ export function SignUpScreen({ searchParams }: { searchParams: Promise<{ next?: 
     setLoading(true);
     try {
       await signUp(parsed.data);
-      toast.success(fmt(t.auth.welcome, { name: parsed.data.fullName.split(" ")[0] }), t.demo.demoAccount);
+      toast.success(fmt(t.auth.welcome, { name: parsed.data.fullName.split(" ")[0] }), appConfig.isPrototype ? t.demo.demoAccount : undefined);
       router.push(href(next));
     } catch (error) {
       if (isServiceError(error, "email_taken")) setErrors({ email: "emailTaken" });

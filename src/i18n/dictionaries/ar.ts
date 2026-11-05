@@ -717,6 +717,11 @@ const ar = {
     simulateDrop: "تجريبي: محاكاة انقطاع الاتصال",
     materialShared: "شارك {name} الملف {file}",
     lessonInfo: "معلومات الدرس",
+    enableSound: "اضغط لتشغيل الصوت",
+    remoteSharing: "{name} يشارك شاشته",
+    materialsNeedStorage: "مشاركة الملفات داخل الدرس تحتاج إلى تخزين الملفات، وهو غير موصول بعد. شارك شاشتك أو أرسل الملف في الرسائل حاليًا.",
+    unavailableTitle: "تعذّر فتح الفصل",
+    connectionFailed: "تعذّر الاتصال بخدمة الفيديو. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.",
   },
   settings: {
     title: "إعدادات الحساب",

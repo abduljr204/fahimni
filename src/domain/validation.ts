@@ -170,6 +170,16 @@ export const attachmentSchema = z.object({
 });
 export type AttachmentInput = z.infer<typeof attachmentSchema>;
 
+/** A chat file already in private storage, as sent to the server for production messages. */
+export const storedMessageSchema = z.object({
+  conversationId: z.string().min(1),
+  body: z.string().trim().max(2000, "messageTooLong"),
+  attachments: z
+    .array(attachmentSchema.omit({ url: true }).extend({ path: z.string().min(1).max(200) }))
+    .max(MAX_ATTACHMENTS, "tooManyFiles")
+    .default([]),
+});
+
 export const sendMessageSchema = z
   .object({
     conversationId: z.string().min(1),

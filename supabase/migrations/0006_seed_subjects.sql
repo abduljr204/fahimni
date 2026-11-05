@@ -1,0 +1,26 @@
+-- Fahimni — the subjects tutors can teach. Reference data, not demo data; admins can extend it.
+insert into public.subjects (slug, category, name) values
+  ('calculus', 'math', '{"ar":"التحليل الرياضي","en":"Calculus"}'),
+  ('linear-algebra', 'math', '{"ar":"الجبر الخطي","en":"Linear Algebra"}'),
+  ('statistics', 'math', '{"ar":"الإحصاء والاحتمالات","en":"Statistics & Probability"}'),
+  ('physics', 'science', '{"ar":"الفيزياء العامة","en":"General Physics"}'),
+  ('chemistry', 'science', '{"ar":"الكيمياء العامة","en":"General Chemistry"}'),
+  ('biochemistry', 'science', '{"ar":"الكيمياء الحيوية","en":"Biochemistry"}'),
+  ('cell-biology', 'science', '{"ar":"البيولوجيا الخلوية","en":"Cell Biology"}'),
+  ('electronics', 'engineering', '{"ar":"الإلكترونيات","en":"Electronics"}'),
+  ('mechanics', 'engineering', '{"ar":"الميكانيكا","en":"Mechanics"}'),
+  ('thermodynamics', 'engineering', '{"ar":"الديناميكا الحرارية","en":"Thermodynamics"}'),
+  ('anatomy', 'medicine', '{"ar":"التشريح","en":"Anatomy"}'),
+  ('physiology', 'medicine', '{"ar":"علم وظائف الأعضاء","en":"Physiology"}'),
+  ('pharmacology', 'medicine', '{"ar":"علم الأدوية","en":"Pharmacology"}'),
+  ('python', 'it', '{"ar":"البرمجة بلغة بايثون","en":"Python Programming"}'),
+  ('data-structures', 'it', '{"ar":"هياكل البيانات والخوارزميات","en":"Data Structures & Algorithms"}'),
+  ('databases', 'it', '{"ar":"قواعد البيانات","en":"Databases"}'),
+  ('accounting', 'business', '{"ar":"المحاسبة العامة","en":"Financial Accounting"}'),
+  ('microeconomics', 'business', '{"ar":"الاقتصاد الجزئي","en":"Microeconomics"}'),
+  ('finance', 'business', '{"ar":"المالية","en":"Corporate Finance"}'),
+  ('academic-english', 'languages', '{"ar":"الإنجليزية الأكاديمية","en":"Academic English"}'),
+  ('french', 'languages', '{"ar":"الفرنسية","en":"French"}'),
+  ('civil-law', 'law', '{"ar":"القانون المدني","en":"Civil Law"}'),
+  ('constitutional-law', 'law', '{"ar":"القانون الدستوري","en":"Constitutional Law"}')
+on conflict (slug) do nothing;

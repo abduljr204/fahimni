@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { ADULT_AGE, MIN_CHILD_AGE } from "@/domain/accounts";
 import { fieldErrors, parentSignUpSchema } from "@/domain/validation";
 import { useI18n } from "@/i18n/i18n-provider";
+import { appConfig } from "@/config/app-config";
 import { getServices, isServiceError } from "@/services";
 
 const LEVELS = ["secondary", "university_early"] as const;
@@ -52,7 +53,7 @@ export function ParentSignUpForm({ next }: { next: string }) {
     setLoading(true);
     try {
       await getServices().auth.signUpParent(raw as never);
-      toast.success(fmt(t.auth.welcome, { name: parsed.data.fullName.split(" ")[0] }), t.demo.demoAccount);
+      toast.success(fmt(t.auth.welcome, { name: parsed.data.fullName.split(" ")[0] }), appConfig.isPrototype ? t.demo.demoAccount : undefined);
       router.push(href(next));
     } catch (error) {
       if (isServiceError(error, "email_taken")) setErrors({ email: "emailTaken" });

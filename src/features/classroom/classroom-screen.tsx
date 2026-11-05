@@ -42,11 +42,45 @@ import { getVideoProvider, type CallState, type VideoCall } from "@/services/vid
 // ─── Media ──────────────────────────────────────────────────────────────────
 
 function VideoView({ stream, muted, mirror, className }: { stream: MediaStream; muted?: boolean; mirror?: boolean; className?: string }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLVideoElement>(null);
+  const [soundBlocked, setSoundBlocked] = useState(false);
   useEffect(() => {
-    if (ref.current && ref.current.srcObject !== stream) ref.current.srcObject = stream;
+    const el = ref.current;
+    if (!el) return;
+    if (el.srcObject !== stream) el.srcObject = stream;
+    // Browsers can refuse to autoplay sound (e.g. after opening the link directly).
+    el.play().catch((e: DOMException) => e.name === "NotAllowedError" && !muted && setSoundBlocked(true));
+  }, [stream, muted]);
+  return (
+    <>
+      <video ref={ref} autoPlay playsInline muted={muted} className={cn("size-full object-cover", mirror && "-scale-x-100", className)} />
+      {soundBlocked && (
+        <button
+          type="button"
+          onClick={() => {
+            void ref.current?.play();
+            setSoundBlocked(false);
+          }}
+          className="absolute inset-x-0 top-3 mx-auto w-fit rounded-full bg-accent-400 px-4 py-2 text-[13px] font-bold text-ink-950"
+        >
+          {t.classroom.enableSound}
+        </button>
+      )}
+    </>
+  );
+}
+
+/** Keeps someone's voice playing when their video isn't on screen. */
+function RemoteAudio({ stream }: { stream: MediaStream }) {
+  const ref = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (el.srcObject !== stream) el.srcObject = stream;
+    void el.play().catch(() => {});
   }, [stream]);
-  return <video ref={ref} autoPlay playsInline muted={muted} className={cn("size-full object-cover", mirror && "-scale-x-100", className)} />;
+  return <audio ref={ref} autoPlay />;
 }
 
 /** Stand-in for the other person's camera in the prototype. Always labelled as simulated. */
@@ -175,6 +209,7 @@ function MaterialsPanel({ call, state, ticket }: { call: VideoCall; state: CallS
   const { t, l } = useI18n();
   const toast = useToast();
   const input = useRef<HTMLInputElement>(null);
+  if (!state.materialsEnabled) return <p className="py-6 text-center text-[13px] text-ink-500">{t.classroom.materialsNeedStorage}</p>;
   const share = async (file?: File) => {
     if (!file) return;
     const result = await toAttachment(file);
@@ -297,6 +332,7 @@ function CallView({ call, ticket, onLeave }: { call: VideoCall; ticket: Classroo
   const isTutor = ticket.me.role === "tutor";
   const remote = state.remote[0];
   const remoteName = remote ? l(remote.displayName) : "";
+  const screen = state.local.screen ?? remote?.screen;
   const lessonMs = ticket.lesson.durationMinutes * 60_000;
   const remainingMin = Math.ceil((lessonMs - elapsed) / 60_000);
 
@@ -327,7 +363,16 @@ function CallView({ call, ticket, onLeave }: { call: VideoCall; ticket: Classroo
       }
     >
       {remote.connected ? (
-        remote.stream ? <VideoView stream={remote.stream} /> : <SimulatedVideo name={remoteName} hue={remote.avatarHue} speaking={remote.speaking} />
+        remote.simulated ? (
+          <SimulatedVideo name={remoteName} hue={remote.avatarHue} speaking={remote.speaking} />
+        ) : remote.stream && remote.camOn ? (
+          <VideoView stream={remote.stream} />
+        ) : (
+          <>
+            <SimulatedVideo name={remoteName} hue={remote.avatarHue} speaking={remote.speaking} />
+            {remote.stream && <RemoteAudio stream={remote.stream} />}
+          </>
+        )
       ) : (
         <div className="grid size-full place-items-center p-6 text-center">
           <div>
@@ -362,8 +407,8 @@ function CallView({ call, ticket, onLeave }: { call: VideoCall; ticket: Classroo
           <span className="mx-auto grid size-16 place-items-center rounded-full bg-white/10">
             <LogOut className="size-7" />
           </span>
-          <h1 className="mt-5 text-2xl font-extrabold">{t.classroom.ended}</h1>
-          <p className="mt-2 text-[14px] text-white/70">{t.classroom.endedBody}</p>
+          <h1 className="mt-5 text-2xl font-extrabold">{state.connectionFailed ? t.classroom.unavailableTitle : t.classroom.ended}</h1>
+          <p className="mt-2 text-[14px] text-white/70">{state.connectionFailed ? t.classroom.connectionFailed : t.classroom.endedBody}</p>
           <div className="mt-6 grid gap-2">
             <Button size="lg" onClick={() => call.start()}>
               {t.classroom.rejoin}
@@ -410,10 +455,10 @@ function CallView({ call, ticket, onLeave }: { call: VideoCall; ticket: Classroo
       {/* Stage */}
       <div className="flex min-h-0 flex-1 gap-4 px-3 md:px-5">
         <div className="relative min-h-0 flex-1">
-          {state.local.screen ? (
+          {screen ? (
             <div className="grid size-full grid-rows-[1fr_auto] gap-3">
-              <Tile label={t.classroom.sharing} className="size-full">
-                <VideoView stream={state.local.screen} muted className="object-contain" />
+              <Tile label={state.local.screen ? t.classroom.sharing : fmt(t.classroom.remoteSharing, { name: remoteName })} className="size-full">
+                <VideoView stream={screen} muted className="object-contain" />
               </Tile>
               <div className="grid h-28 grid-cols-2 gap-3 md:h-36">
                 {remoteTile}
@@ -449,6 +494,9 @@ function CallView({ call, ticket, onLeave }: { call: VideoCall; ticket: Classroo
             )}
           </AnimatePresence>
         </div>
+
+        {/* Anyone beyond the main tile (e.g. a parent alongside the student) is still heard. */}
+        {state.remote.slice(1).map((r) => r.stream && <RemoteAudio key={r.userId} stream={r.stream} />)}
 
         {/* Desktop side panel */}
         <aside className="hidden w-[340px] shrink-0 rounded-3xl bg-white p-4 text-ink-900 md:block">
@@ -637,6 +685,9 @@ function Classroom({ bookingId, demo }: { bookingId: string; demo: boolean }) {
         not_participant: t.classroom.deniedBody,
       }[d.reason];
       return <Denied title={d.reason === "ended" ? t.classroom.endedTitle : t.classroom.closedTitle} body={body} onBack={back} />;
+    }
+    if (isServiceError(join.error, "not_configured")) {
+      return <Denied title={t.classroom.unavailableTitle} body={t.classroom.connectionFailed} onBack={back} />;
     }
     return <Denied title={t.classroom.deniedTitle} body={t.classroom.deniedBody} onBack={back} />;
   }

@@ -4,8 +4,15 @@
 -- Privileged transitions (confirming bookings, payments) run in SECURITY DEFINER
 -- functions or server-side Route Handlers using the service-role key.
 
-create extension if not exists "pgcrypto";
-create extension if not exists "btree_gist";
+create extension if not exists "pgcrypto" with schema extensions;
+create extension if not exists "btree_gist" with schema extensions;
+
+-- Adding minutes doesn't depend on the time zone, so this is safe to declare immutable, which
+-- the exclusion constraint on bookings requires.
+create or replace function public.lesson_range(p_starts_at timestamptz, p_duration smallint) returns tstzrange
+language sql immutable set search_path = public as $$
+  select tstzrange(p_starts_at, p_starts_at + make_interval(mins => p_duration::integer));
+$$;
 
 -- ─── Enums ──────────────────────────────────────────────────────────────────
 create type user_role as enum ('student', 'tutor', 'admin');
@@ -110,7 +117,7 @@ create table public.bookings (
   -- A tutor can never be double-booked, even under concurrent requests.
   constraint no_overlapping_bookings exclude using gist (
     tutor_id with =,
-    tstzrange(starts_at, starts_at + make_interval(mins => duration_minutes)) with &&
+    public.lesson_range(starts_at, duration_minutes) with &&
   ) where (status in ('pending', 'confirmed'))
 );
 create index bookings_student_idx on public.bookings (student_id, starts_at);

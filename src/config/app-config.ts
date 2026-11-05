@@ -15,6 +15,7 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_APP_MODE: z.enum(APP_MODES).default("prototype"),
   NEXT_PUBLIC_SUPABASE_URL: z.url().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_VIDEO_PROVIDER: z.enum(["simulated", "daily"]).default("simulated"),
 });
 
 // Next.js inlines NEXT_PUBLIC_* values at build time, so they must be referenced literally.
@@ -22,6 +23,7 @@ const parsed = publicEnvSchema.safeParse({
   NEXT_PUBLIC_APP_MODE: process.env.NEXT_PUBLIC_APP_MODE || undefined,
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || undefined,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || undefined,
+  NEXT_PUBLIC_VIDEO_PROVIDER: process.env.NEXT_PUBLIC_VIDEO_PROVIDER || undefined,
 });
 
 if (!parsed.success) {
@@ -33,6 +35,7 @@ const env = parsed.data;
 export const appConfig = {
   mode: env.NEXT_PUBLIC_APP_MODE,
   isPrototype: env.NEXT_PUBLIC_APP_MODE === "prototype",
+  video: { provider: env.NEXT_PUBLIC_VIDEO_PROVIDER },
   supabase: {
     url: env.NEXT_PUBLIC_SUPABASE_URL,
     anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,

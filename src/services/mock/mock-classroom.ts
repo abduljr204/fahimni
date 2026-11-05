@@ -1,3 +1,4 @@
+import { appConfig } from "@/config/app-config";
 import { classroomDenial, classroomWindow } from "@/domain/access";
 import type { ClassroomParticipant, ClassroomTicket } from "@/domain/types";
 import type { ClassroomService } from "../contracts";
@@ -11,10 +12,27 @@ import { clone, latency, mockDb, newId } from "./mock-db";
  * entry window is open. The "token" is a random string that the simulated video provider
  * accepts; production issues a signed, short-lived token from the video service instead.
  */
+/** Swaps the simulated credential for a real one from the server when Daily is switched on. */
+async function withLiveToken(ticket: ClassroomTicket): Promise<ClassroomTicket> {
+  if (appConfig.video.provider !== "daily") return ticket;
+  const response = await fetch(`/api/classroom/${encodeURIComponent(ticket.bookingId)}/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: ticket.me.userId,
+      displayName: ticket.me.displayName.en ?? ticket.me.displayName.ar ?? "Participant",
+      role: ticket.me.role,
+    }),
+  });
+  if (!response.ok) throw new ServiceError("not_configured", `Classroom token request failed (${response.status}).`);
+  const issued = (await response.json()) as { token: string; serverUrl: string; roomName: string; expiresAt: string };
+  return { ...ticket, ...issued, provider: "daily" };
+}
+
 export const mockClassroomService: ClassroomService = {
   async join(actorUserId, bookingId, options) {
     await latency(300, 600);
-    return mockDb.mutate((s) => {
+    const ticket = mockDb.mutate((s) => {
       const booking = s.bookings.find((b) => b.id === bookingId);
       // Same answer for "doesn't exist" and "not yours", so ids can't be probed.
       if (!booking) throw new ServiceError("forbidden");
@@ -41,7 +59,7 @@ export const mockClassroomService: ClassroomService = {
       if (booking.lessonStatus === "scheduled") booking.lessonStatus = "in_progress";
 
       const { closesAt } = classroomWindow(booking, s.settings);
-      const ticket: ClassroomTicket = {
+      const issued: ClassroomTicket = {
         bookingId,
         roomName: `lesson-${bookingId}`,
         token: newId("sim-token"),
@@ -57,8 +75,9 @@ export const mockClassroomService: ClassroomService = {
         },
         recording: false,
       };
-      return clone(ticket);
+      return clone(issued);
     });
+    return withLiveToken(ticket);
   },
 
   async leave(actorUserId, bookingId) {

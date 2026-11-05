@@ -18,6 +18,8 @@ export interface RemoteParticipant extends ClassroomParticipant {
   speaking: boolean;
   /** Real media from a provider; absent for the prototype's simulated participant. */
   stream?: MediaStream;
+  /** Their shared screen, when they are sharing. */
+  screen?: MediaStream;
   simulated: boolean;
 }
 
@@ -39,6 +41,10 @@ export interface CallState {
   status: CallStatus;
   /** True for the prototype's simulated call: the UI labels it clearly. */
   simulated: boolean;
+  /** False until shared file storage exists for real calls. */
+  materialsEnabled: boolean;
+  /** The call ended because of an error, not because someone left. */
+  connectionFailed?: boolean;
   local: {
     stream?: MediaStream;
     screen?: MediaStream;

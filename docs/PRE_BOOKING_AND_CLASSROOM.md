@@ -119,38 +119,48 @@ Booking status (`pending/confirmed/declined/cancelled`), payment status
   indicator, store files in a private bucket with a stated retention period, and let
   participants delete recordings.
 
-### Integrating a video provider
+### Real video with Daily
 
-Use an established service rather than building video infrastructure. Good fits:
-LiveKit (open source or cloud), Daily, Twilio Video, Agora.
+Real calls run through [Daily](https://www.daily.co). The classroom screen is ours; Daily
+carries the audio and video. The code is in `src/services/video/daily-provider.ts` (browser),
+`src/services/video/server.ts` (server, holds the key) and
+`src/app/api/classroom/[bookingId]/token/route.ts`.
 
-1. Create a project with the provider and note the API key, API secret and server URL.
-2. Set `VIDEO_PROVIDER_API_KEY`, `VIDEO_PROVIDER_API_SECRET`, `VIDEO_PROVIDER_URL`
-   (server-only, see `.env.example`).
-3. Implement `issueVideoToken` in `src/services/video/server.ts` with the provider's server
-   SDK, and a Route Handler `POST /api/classroom/[bookingId]/token` that calls the database
-   function `classroom_access(booking_id)` as the signed-in user, then returns a
-   `ClassroomTicket` with a token that expires when the window closes. Disable recording in
-   the room options.
-4. Implement a `VideoProvider` with the provider's client SDK in `src/services/video/` and
-   return it from `getVideoProvider()` in production. The classroom screen doesn't change.
-5. Implement `ClassroomService.join` in the Supabase services to call that Route Handler.
+Setup, in `.env.local` (never commit it, and never prefix the key with `NEXT_PUBLIC_`):
+
+```
+VIDEO_PROVIDER_API_KEY=<from dashboard.daily.co>
+VIDEO_PROVIDER_URL=https://<your-subdomain>.daily.co
+NEXT_PUBLIC_VIDEO_PROVIDER=daily
+VIDEO_TEST_MODE=true
+```
+
+If joins fail with `account-missing-payment-method` in the browser console, the Daily account
+needs a payment method.
+
+In production mode the token route verifies the signed-in user and calls the database function
+`classroom_ticket` as them, so identity and role come from the database, and tokens expire when
+the classroom window closes.
+
+The two `NEXT_PUBLIC_VIDEO_PROVIDER` and `VIDEO_TEST_MODE` settings above only matter in prototype
+mode, which keeps accounts in the browser and so can't verify who is asking. There the route
+answers only under `npm run dev`. Seeded lessons (such as `b-1`) work across two browsers because
+their ids match; lessons created in one browser don't exist in the other.
+
+File sharing during a call still needs storage wired to the classroom. Until `materialsEnabled` is
+set in the Daily provider, the Materials tab explains that it isn't available on real calls.
+
+Screen sharing is limited to the tutor by the Daily token itself, not just by the UI. Browsers
+allow camera access only on HTTPS or `localhost`, so testing from a phone needs an HTTPS URL.
 
 ## Production checklist
 
-- Run `supabase/migrations/0003_pre_booking_and_classroom.sql` after 0001 and 0002.
-- Private storage bucket `chat-attachments`; serve files with short-lived signed URLs.
-- Route Handlers (server, with the user's session; service-role key only where noted):
-  - `POST /api/messages`: runs `detectContactDetails` for locked conversations, uploads
-    attachments, inserts with the service role. (Unlocked conversations may insert directly.)
-  - `POST /api/proposals`: validates the tutor's area with the same check, then inserts.
-  - `POST /api/payments/checkout` and the provider webhook (see
-    `src/services/payments/provider.ts`). Mark bookings paid only from the webhook; refunds
-    on decline/cancel follow `domain/refunds.ts`.
-  - `POST /api/classroom/[bookingId]/token` (above).
-- Credentials: Supabase URL/keys, `PAYMENT_PROVIDER_SECRET_KEY`, the three video variables.
-- Parents: an onboarding flow that links a parent account to a younger student
-  (`student_profiles.guardian_user_id`), with age and consent checks appropriate for Libya.
+Setup is in [PRODUCTION_SETUP.md](PRODUCTION_SETUP.md). Still to build before taking real bookings:
+
+- `POST /api/payments/checkout` and the provider webhook (see
+  `src/services/payments/provider.ts`). Mark bookings paid only from the webhook; refunds on
+  decline/cancel follow `domain/refunds.ts`.
+- Review the age and consent checks for parents and younger students against Libyan requirements.
 
 ## What the prototype simulates
 
